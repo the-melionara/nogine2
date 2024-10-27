@@ -41,6 +41,7 @@ pub const GLFW_NO_API: c_int = 0;
 
 #[repr(i32)]
 #[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GLFWaction {
     RELEASE = 0,
     PRESS = 1,
@@ -48,6 +49,7 @@ pub enum GLFWaction {
 }
 
 #[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GLFWkey {
     SPACE = 32,
     APOSTROPHE = 39, /* ' */

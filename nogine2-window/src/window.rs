@@ -2,7 +2,7 @@ use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
 
-use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, init_glfw};
+use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetKeyCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
 
 #[derive(Debug, Clone)]
 pub struct WindowCfg<'a> {
@@ -49,6 +49,7 @@ impl Window {
                 crash!("Couldn't create Window or initialize an OpenGL context!");
             }
             glfwMakeContextCurrent(window);
+            glfwSetKeyCallback(window, glfw_callbacks::key_callback);
 
             log_info!("NOGINE2: Window created");
             return Self { glfw_window: window, ts: 0.02, last_frame: Instant::now(), title: cfg.title.to_string(), thread: std::thread::current().id() };
@@ -71,6 +72,7 @@ impl Window {
     pub fn post_tick(&mut self) {
         assert_main_thread!(self);
 
+        Input::flush();
         unsafe {
             glfwSwapBuffers(self.glfw_window);
             glfwPollEvents();
