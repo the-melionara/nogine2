@@ -5,4 +5,5 @@ members = [
     "nogine2",
     "nogine2-core",
     "nogine2-window",
+    "nogine2-graphics"
 ]

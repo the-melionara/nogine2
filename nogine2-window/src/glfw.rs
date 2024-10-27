@@ -261,6 +261,8 @@ extern "C" {
 
     /// \[main thread only]
     pub fn glfwSetWindowMonitor(window: *mut GLFWwindow, monitor: *mut GLFWmonitor, xpos: c_int, ypos: c_int, width: c_int, height: c_int, refreshRate: c_int);
+
+    pub fn glfwGetProcAddress(procname: *const c_char) -> *const c_void;
 }
 
 // TODO: Actually do good links here

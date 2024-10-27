@@ -1,0 +1,11 @@
+[package]
+name = "nogine2-graphics"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+nogine2-core = { path = "../nogine2-core" }
+
+[build-dependencies]
+gl_generator = "0.14.0"
