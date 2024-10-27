@@ -2,7 +2,7 @@ use std::sync::RwLock;
 
 use bitflags::bitflags;
 use keyboard::Keyboard;
-use nogine2_core::{log_error, log_info};
+use nogine2_core::log_error;
 
 use crate::glfw::{GLFWaction, GLFWkey};
 

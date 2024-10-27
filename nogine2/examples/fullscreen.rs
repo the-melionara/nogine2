@@ -1,4 +1,4 @@
-use nogine2::{input::{keyboard::Key, Input}, log_info, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{input::{keyboard::Key, Input}, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
