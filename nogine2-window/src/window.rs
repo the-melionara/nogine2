@@ -24,6 +24,7 @@ pub(crate) static POST_TICK_EVS: RwLock<Event<Window>> = RwLock::new(Event::new(
 pub struct Window {
     glfw_window: *mut GLFWwindow,
     title: String,
+    best_res: uvec2,
 
     ts: f32,
     last_frame: Instant,
@@ -52,7 +53,12 @@ impl Window {
             glfwSetKeyCallback(window, glfw_callbacks::key_callback);
 
             log_info!("NOGINE2: Window created");
-            return Self { glfw_window: window, ts: 0.02, last_frame: Instant::now(), title: cfg.title.to_string(), thread: std::thread::current().id() };
+            return Self {
+                glfw_window: window,
+                title: cfg.title.to_string(),best_res: cfg.res,
+                ts: 0.02, last_frame: Instant::now(),
+                thread: std::thread::current().id()
+            };
         }
     }
 
@@ -82,6 +88,11 @@ impl Window {
 
         self.ts = self.last_frame.elapsed().as_secs_f32();
         self.last_frame = Instant::now();
+
+        // Update best_res
+        if !self.fullscreen() {
+            self.best_res = self.res();
+        }
     }
 
     /// Sets vsync.
@@ -106,6 +117,7 @@ impl Window {
     pub fn set_res(&mut self, res: uvec2) {
         assert_main_thread!(self);
         unsafe { glfwSetWindowSize(self.glfw_window, res.0 as i32, res.1 as i32) };
+        self.best_res = res;
     }
 
     /// Returns the window's framebuffer size.
@@ -173,7 +185,12 @@ impl Window {
             if fullscreen {
                 glfwSetWindowMonitor(self.glfw_window, monitor, 0, 0, vid_mode.width, vid_mode.height, vid_mode.refreshRate);
             } else {
-                glfwSetWindowMonitor(self.glfw_window, std::ptr::null_mut(), 0, 0, 0, 0, 0);
+                glfwSetWindowMonitor(
+                    self.glfw_window, std::ptr::null_mut(),
+                    (vid_mode.width - self.best_res.0 as i32) / 2, (vid_mode.height - self.best_res.1 as i32) / 2,
+                    self.best_res.0 as i32, self.best_res.1 as i32,
+                    0
+                );
             }
         }
     }
