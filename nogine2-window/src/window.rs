@@ -1,8 +1,8 @@
-use std::{ffi::CString, sync::atomic::{AtomicBool, Ordering}, time::Instant};
+use std::{ffi::CString, sync::atomic::{AtomicBool, Ordering}, thread::ThreadId, time::Instant};
 
-use nogine2_core::{crash, log::init_log, log_info, math::vector2::uvec2};
+use nogine2_core::{assert_expr, crash, log::init_log, log_info, math::vector2::{ivec2, uvec2}};
 
-use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwMakeContextCurrent, glfwPollEvents, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, init_glfw};
+use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, init_glfw};
 
 #[derive(Debug, Clone)]
 pub struct WindowCfg<'a> {
@@ -12,11 +12,20 @@ pub struct WindowCfg<'a> {
 
 static MAIN_WINDOW_EXISTS: AtomicBool = AtomicBool::new(false);
 
+macro_rules! assert_main_thread {
+    ($val:expr) => {
+        assert_expr!($val.thread == std::thread::current().id(), "You can only call this function from the main thread!");
+    };
+}
+
 pub struct Window {
     glfw_window: *mut GLFWwindow,
+    title: String,
 
     ts: f32,
     last_frame: Instant,
+
+    thread: ThreadId,
 }
 
 impl Window {
@@ -40,7 +49,7 @@ impl Window {
             glfwMakeContextCurrent(window);
 
             log_info!("NOGINE2: Window created");
-            return Self { glfw_window: window, ts: 0.02, last_frame: Instant::now() };
+            return Self { glfw_window: window, ts: 0.02, last_frame: Instant::now(), title: cfg.title.to_string(), thread: std::thread::current().id() };
         }
     }
 
@@ -51,11 +60,13 @@ impl Window {
 
     /// Executes at the start of every frame.
     pub fn pre_tick(&mut self) {
-        
+        assert_main_thread!(self);
     }
 
     /// Executes at the end of every frame.
     pub fn post_tick(&mut self) {
+        assert_main_thread!(self);
+
         unsafe {
             glfwSwapBuffers(self.glfw_window);
             glfwPollEvents();
@@ -67,17 +78,108 @@ impl Window {
 
     /// Sets vsync.
     pub fn set_vsync(&mut self, enabled: bool) {
-       unsafe { glfwSwapInterval(if enabled { 1 } else { 0 }) };
+        assert_main_thread!(self);
+        unsafe { glfwSwapInterval(if enabled { 1 } else { 0 }) };
     }
 
     /// Returns the elapsed time since the last frame in seconds.
     pub fn ts(&self) -> f32 {
         self.ts
     }
+
+    /// Returns the window's resolution in pixels. **NOTE:** In some platforms this resolution does not directly represent the framebuffer's size (if you need that, use `.fb_size()`).
+    pub fn res(&self) -> uvec2 {
+        let mut res = ivec2::ZERO;
+        unsafe { glfwGetWindowSize(self.glfw_window, &mut res.0, &mut res.1) };
+        return uvec2::from(res);
+    }
+
+    /// Sets the window's resolution. **NOTE:** In some platforms this resolution does not directly represent the framebuffer's size (there's no consistent way to directly change it, so just keep that in mind).
+    pub fn set_res(&mut self, res: uvec2) {
+        assert_main_thread!(self);
+        unsafe { glfwSetWindowSize(self.glfw_window, res.0 as i32, res.1 as i32) };
+    }
+
+    /// Returns the window's framebuffer size.
+    pub fn fb_size(&self) -> uvec2 {
+        let mut res = ivec2::ZERO;
+        unsafe { glfwGetFramebufferSize(self.glfw_window, &mut res.0, &mut res.1) };
+        return uvec2::from(res);
+    }
+
+    /// Returns the window's title.
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    /// Sets the window's title.
+    pub fn set_title(&mut self, title: impl Into<String>) {
+        assert_main_thread!(self);
+
+        let title = title.into();
+        let Ok(c_title) = CString::new(title.as_str()) else {
+            crash!("The title of a window must not have any \\0 inside its body!");
+        };
+
+        unsafe { glfwSetWindowTitle(self.glfw_window, c_title.as_ptr()) };
+        self.title = title;
+    }
+
+    /// Minimizes the window.
+    pub fn minimize(&mut self) {
+        assert_main_thread!(self);
+        unsafe { glfwIconifyWindow(self.glfw_window) };
+    }
+
+    /// Restores the window.
+    pub fn restore(&mut self) {
+        assert_main_thread!(self);
+        unsafe { glfwRestoreWindow(self.glfw_window) };
+    }
+
+    /// Maximizes the window.
+    pub fn maximize(&mut self) {
+        assert_main_thread!(self);
+        unsafe { glfwMaximizeWindow(self.glfw_window) };
+    }
+
+    /// Requests attention to the window.
+    pub fn request_attention(&mut self) {
+        assert_main_thread!(self);
+        unsafe { glfwRequestWindowAttention(self.glfw_window) };
+    }
+
+    /// Returns if the window is full screen.
+    pub fn fullscreen(&self) -> bool {
+        assert_main_thread!(self);
+        return !unsafe { glfwGetWindowMonitor(self.glfw_window) }.is_null();
+    }
+
+    /// Sets a window to be fullscreen.
+    pub fn set_fullscreen(&mut self, fullscreen: bool) {
+        assert_main_thread!(self);
+        unsafe {
+            let monitor = glfwGetPrimaryMonitor();
+            let vid_mode = glfwGetVideoMode(monitor).as_ref().unwrap_unchecked();
+
+            if fullscreen {
+                glfwSetWindowMonitor(self.glfw_window, monitor, 0, 0, vid_mode.width, vid_mode.height, vid_mode.refreshRate);
+            } else {
+                glfwSetWindowMonitor(self.glfw_window, std::ptr::null_mut(), 0, 0, 0, 0, 0);
+            }
+        }
+    }
+
+    /// Toggles fullscreen.
+    pub fn toggle_fullscreen(&mut self) {
+        self.set_fullscreen(!self.fullscreen());
+    }
 }
 
 impl Drop for Window {
     fn drop(&mut self) {
+        assert_main_thread!(self);
+
         // Don't change MAIN_WINDOW_EXISTS to avoid multiple nogine2 initializations
         unsafe { glfwDestroyWindow(self.glfw_window) };
         deinit_glfw();

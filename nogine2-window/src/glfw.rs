@@ -28,6 +28,16 @@ pub const GLFW_NO_API: c_int = 0;
 #[repr(C)] pub struct GLFWwindow(c_void);
 #[repr(C)] pub struct GLFWmonitor(c_void);
 
+#[allow(non_snake_case)]
+#[repr(C)] pub struct GLFWvidmode {
+    pub width: c_int,
+    pub height: c_int,
+    pub redBits: c_int,
+    pub greenBits: c_int,
+    pub blueBits: c_int,
+    pub refreshRate: c_int,
+}
+
 #[repr(i32)]
 #[allow(dead_code)]
 pub enum GLFWaction {
@@ -185,8 +195,11 @@ extern "C" {
     pub fn glfwInit() -> GLFWbool;
     pub fn glfwTerminate();
     pub fn glfwGetRequiredInstanceExtensions(count: *mut u32) -> *const *const c_char;
+   
+    /// \[main thread only]
     pub fn glfwCreateWindow(width: c_int, height: c_int, title: *const c_char, monitor: *mut GLFWmonitor, share: *mut GLFWwindow) -> *mut GLFWwindow;
     pub fn glfwWindowHint(hint: c_int, value: c_int);
+    /// \[main thread only]
     pub fn glfwDestroyWindow(window: *mut GLFWwindow);
     pub fn glfwGetFramebufferSize(window: *mut GLFWwindow, width: *mut c_int, height: *mut c_int);
     pub fn glfwWindowShouldClose(window: *mut GLFWwindow) -> GLFWbool;
@@ -194,8 +207,10 @@ extern "C" {
     pub fn glfwSetErrorCallback(callback: GLFWerrorfun) -> GLFWerrorfun;
     pub fn glfwSetKeyCallback(window: *mut GLFWwindow, callback: GLFWkeyfun) -> GLFWkeyfun;
     pub fn glfwSetWindowCloseCallback(window: *mut GLFWwindow, callback: GLFWwindowclosefun) -> GLFWwindowclosefun;
+    
+    /// \[main thread only]
     pub fn glfwPollEvents();
-    //pub fn glfwSetWindowShouldClose(window: *mut GLFWwindow, value: GLFWbool);
+    pub fn glfwSetWindowShouldClose(window: *mut GLFWwindow, value: GLFWbool);
     pub fn glfwSetCursorPosCallback(window: *mut GLFWwindow, callback: GLFWcursorposfun) -> GLFWcursorposfun;
     pub fn glfwSetScrollCallback(window: *mut GLFWwindow, callback: GLFWscrollfun) -> GLFWscrollfun;
     pub fn glfwSetMouseButtonCallback(window: *mut GLFWwindow, callback: GLFWmousebuttonfun) -> GLFWmousebuttonfun;
@@ -210,6 +225,39 @@ extern "C" {
     pub fn glfwMakeContextCurrent(window: *mut GLFWwindow);
     pub fn glfwSwapBuffers(window: *mut GLFWwindow);
     pub fn glfwSwapInterval(interval: c_int);
+
+    /// \[main thread only]
+    pub fn glfwSetWindowSize(window: *mut GLFWwindow, width: c_int, height: c_int);
+
+    /// \[main thread only]
+    pub fn glfwGetWindowSize(window: *mut GLFWwindow, width: *mut c_int, height: *mut c_int);
+
+    /// \[main thread only]
+    pub fn glfwSetWindowTitle(window: *mut GLFWwindow, title: *const c_char);
+
+    /// \[main thread only]
+    pub fn glfwIconifyWindow(window: *mut GLFWwindow);
+
+    /// \[main thread only]
+    pub fn glfwRestoreWindow(window: *mut GLFWwindow);
+
+    /// \[main thread only]
+    pub fn glfwMaximizeWindow(window: *mut GLFWwindow);
+
+    /// \[main thread only]
+    pub fn glfwRequestWindowAttention(window: *mut GLFWwindow);
+
+    /// \[main thread only]
+    pub fn glfwGetPrimaryMonitor() -> *mut GLFWmonitor;
+    
+    /// \[main thread only]
+    pub fn glfwGetVideoMode(monitor: *mut GLFWmonitor) -> *const GLFWvidmode;
+
+    /// \[main thread only]
+    pub fn glfwGetWindowMonitor(window: *mut GLFWwindow) -> *mut GLFWmonitor;
+
+    /// \[main thread only]
+    pub fn glfwSetWindowMonitor(window: *mut GLFWwindow, monitor: *mut GLFWmonitor, xpos: c_int, ypos: c_int, width: c_int, height: c_int, refreshRate: c_int);
 }
 
 // TODO: Actually do good links here
