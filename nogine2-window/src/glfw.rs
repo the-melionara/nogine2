@@ -1,4 +1,5 @@
 #![allow(non_camel_case_types)]
+#![allow(unused)]
 
 use std::ffi::{c_char, c_double, c_int, c_void};
 
@@ -203,7 +204,6 @@ extern "C" {
     pub fn glfwDestroyWindow(window: *mut GLFWwindow);
     pub fn glfwGetFramebufferSize(window: *mut GLFWwindow, width: *mut c_int, height: *mut c_int);
     pub fn glfwWindowShouldClose(window: *mut GLFWwindow) -> GLFWbool;
-    #[cfg(windows)] pub fn glfwGetWin32Window(window: *mut GLFWwindow) -> *mut c_void;
     pub fn glfwSetErrorCallback(callback: GLFWerrorfun) -> GLFWerrorfun;
     pub fn glfwSetKeyCallback(window: *mut GLFWwindow, callback: GLFWkeyfun) -> GLFWkeyfun;
     pub fn glfwSetWindowCloseCallback(window: *mut GLFWwindow, callback: GLFWwindowclosefun) -> GLFWwindowclosefun;
