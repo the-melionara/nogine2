@@ -174,6 +174,7 @@ pub enum GLFWkey {
 }
 
 #[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GLFWmousebutton {
     BUTTON_1 = 0,
     BUTTON_2 = 1,

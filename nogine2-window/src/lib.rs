@@ -34,11 +34,11 @@ pub fn window_subscribe_post_tick(f: fn(&Window)) {
 
 
 mod glfw_callbacks {
-    use std::ffi::{c_char, c_int, CStr};
+    use std::ffi::{c_char, c_double, c_int, CStr};
 
-    use nogine2_core::log_error;
+    use nogine2_core::{log_error, math::vector2::vec2};
 
-    use crate::{glfw::{GLFWaction, GLFWkey, GLFWwindow}, input::Input};
+    use crate::{glfw::{GLFWaction, GLFWkey, GLFWmousebutton, GLFWwindow}, input::Input};
 
     pub extern "C" fn error_callback(error: c_int, description: *const c_char) {
         if let Ok(msg) = unsafe { CStr::from_ptr(description).to_str() } {
@@ -50,5 +50,17 @@ mod glfw_callbacks {
 
     pub extern "C" fn key_callback(_: *mut GLFWwindow, key: GLFWkey, _: c_int, action: GLFWaction, _: c_int) {
         Input::submit_key(key, action);
+    }
+
+    pub extern "C" fn cursor_pos_callback(_: *mut GLFWwindow, xpos: c_double, ypos: c_double) {
+        Input::submit_mouse_pos(vec2(xpos as f32, ypos as f32));
+    }
+
+    pub extern "C" fn mouse_sroll_callback(_: *mut GLFWwindow, xoffset: c_double, yoffset: c_double) {
+        Input::submit_mouse_scroll(vec2(xoffset as f32, yoffset as f32));
+    }
+
+    pub extern "C" fn mouse_button_callback(_: *mut GLFWwindow, button: GLFWmousebutton, action: GLFWaction, _: c_int) {
+        Input::submit_mouse_button(button, action);
     }
 }

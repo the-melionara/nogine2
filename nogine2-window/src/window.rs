@@ -2,7 +2,7 @@ use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
 
-use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetKeyCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
+use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetCursorPosCallback, glfwSetKeyCallback, glfwSetMouseButtonCallback, glfwSetScrollCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
 
 #[derive(Debug, Clone)]
 pub struct WindowCfg<'a> {
@@ -52,6 +52,9 @@ impl Window {
             }
             glfwMakeContextCurrent(window);
             glfwSetKeyCallback(window, glfw_callbacks::key_callback);
+            glfwSetCursorPosCallback(window, glfw_callbacks::cursor_pos_callback);
+            glfwSetScrollCallback(window, glfw_callbacks::mouse_sroll_callback);
+            glfwSetMouseButtonCallback(window, glfw_callbacks::mouse_button_callback);
 
             log_info!("NOGINE2: Window created");
             return Self {
