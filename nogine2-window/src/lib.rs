@@ -1,5 +1,6 @@
 use glfw::{glfwInit, glfwSetErrorCallback, glfwTerminate, GLFWbool};
 use nogine2_core::{crash, log_info};
+use window::{Window, POST_TICK_EVS, PRE_TICK_EVS};
 
 pub mod window;
 
@@ -19,6 +20,15 @@ fn init_glfw() {
 
 fn deinit_glfw() {
     unsafe { glfwTerminate() };
+}
+
+
+pub fn window_subscribe_pre_tick(f: fn(&Window)) {
+    PRE_TICK_EVS.write().unwrap().subscribe(f);
+}
+
+pub fn window_subscribe_post_tick(f: fn(&Window)) {
+    POST_TICK_EVS.write().unwrap().subscribe(f);
 }
 
 

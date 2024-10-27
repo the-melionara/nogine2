@@ -1,6 +1,6 @@
-use std::{ffi::CString, sync::atomic::{AtomicBool, Ordering}, thread::ThreadId, time::Instant};
+use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::Instant};
 
-use nogine2_core::{assert_expr, crash, log::init_log, log_info, math::vector2::{ivec2, uvec2}};
+use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
 
 use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, init_glfw};
 
@@ -17,6 +17,9 @@ macro_rules! assert_main_thread {
         assert_expr!($val.thread == std::thread::current().id(), "You can only call this function from the main thread!");
     };
 }
+
+pub(crate) static PRE_TICK_EVS: RwLock<Event<Window>> = RwLock::new(Event::new());
+pub(crate) static POST_TICK_EVS: RwLock<Event<Window>> = RwLock::new(Event::new());
 
 pub struct Window {
     glfw_window: *mut GLFWwindow,
@@ -35,7 +38,6 @@ impl Window {
             crash!("A main window already exists!");
         }
         
-        init_log();
         init_glfw();
 
         unsafe {
@@ -61,6 +63,8 @@ impl Window {
     /// Executes at the start of every frame.
     pub fn pre_tick(&mut self) {
         assert_main_thread!(self);
+
+        PRE_TICK_EVS.read().unwrap().call(self);
     }
 
     /// Executes at the end of every frame.
@@ -71,6 +75,8 @@ impl Window {
             glfwSwapBuffers(self.glfw_window);
             glfwPollEvents();
         }
+
+        POST_TICK_EVS.read().unwrap().call(self);
 
         self.ts = self.last_frame.elapsed().as_secs_f32();
         self.last_frame = Instant::now();
