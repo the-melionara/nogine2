@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 nogine2-core = { path = "../nogine2-core" }
 glfw-sys = "5.0.0"
+bitflags = "2.6.0"
