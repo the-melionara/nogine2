@@ -1,4 +1,4 @@
-use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::Instant};
+use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::{Duration, Instant}};
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
 
@@ -28,6 +28,7 @@ pub struct Window {
 
     ts: f32,
     last_frame: Instant,
+    first_frame: Instant,
 
     thread: ThreadId,
 }
@@ -56,7 +57,7 @@ impl Window {
             return Self {
                 glfw_window: window,
                 title: cfg.title.to_string(),best_res: cfg.res,
-                ts: 0.02, last_frame: Instant::now(),
+                ts: 0.02, first_frame: Instant::now(), last_frame: Instant::now(),
                 thread: std::thread::current().id()
             };
         }
@@ -104,6 +105,11 @@ impl Window {
     /// Returns the elapsed time since the last frame in seconds.
     pub fn ts(&self) -> f32 {
         self.ts
+    }
+
+    /// Returns the elapsed time since the first frame.
+    pub fn time(&self) -> Duration {
+        self.first_frame.elapsed()
     }
 
     /// Returns the window's resolution in pixels. **NOTE:** In some platforms this resolution does not directly represent the framebuffer's size (if you need that, use `.fb_size()`).
