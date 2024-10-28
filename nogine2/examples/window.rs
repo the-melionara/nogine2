@@ -1,4 +1,4 @@
-use nogine2::{math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{BeginRenderCmd, CameraData}, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -7,7 +7,7 @@ fn main() {
     window.set_vsync(true);
 
     while window.is_open() {
-        window.pre_tick();
+        window.pre_tick(BeginRenderCmd::new(CameraData::default(), window.res(), RGBA32::BLACK));
 
         window.post_tick();
     }
