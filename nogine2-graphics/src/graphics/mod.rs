@@ -1,8 +1,7 @@
 use std::{sync::RwLock, thread::ThreadId};
 
-use nogine2_core::{crash, math::vector2::{uvec2, vec2}};
+use nogine2_core::{crash, math::vector2::vec2};
 
-use crate::colors::rgba::RGBA32;
 
 static GRAPHICS: RwLock<Graphics> = RwLock::new(Graphics::new());
 
