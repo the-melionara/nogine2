@@ -12,7 +12,7 @@ pub struct Graphics {
 
 macro_rules! assert_main_thread {
     ($val:expr) => {
-        assert_expr!($val.thread == Some(std::thread::current().id()), "You can only call this function from the main thread!");
+        assert_expr!($val.thread == Some(std::thread::current().id()), "You can only call this function from the main thread after initializing the window!");
     };
 }
 
@@ -27,23 +27,6 @@ impl Graphics {
         graphics.thread = Some(std::thread::current().id());
     }
 }
-
-/// Represents the required data to begin rendering.
-pub struct BeginRenderCmd<'a> {
-    pub camera: CameraData,
-    pub target_res: uvec2,
-    pub pipeline: &'a (),
-    pub clear_col: RGBA32,
-}
-
-static TEMP_PIPELINE: () = ();
-impl<'a> BeginRenderCmd<'a> {
-    /// Creates a command with the default pipeline.
-    pub fn new(camera: CameraData, target_res: uvec2, clear_col: RGBA32) -> Self {
-        Self { camera, target_res, pipeline: &TEMP_PIPELINE, clear_col }
-    }
-}
-
 
 /// Represents the camera in Unit Space.
 #[derive(Debug, Clone, PartialEq)]

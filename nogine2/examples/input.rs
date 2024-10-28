@@ -1,4 +1,4 @@
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{BeginRenderCmd, CameraData}, input::{keyboard::Key, Input}, log_info, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::CameraData, input::{keyboard::Key, Input}, log_info, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -7,12 +7,7 @@ fn main() {
     window.set_vsync(true);
 
     while window.is_open() {
-        window.pre_tick(BeginRenderCmd {
-            camera: CameraData::default(),
-            target_res: window.res(),
-            pipeline: &(),
-            clear_col: RGBA32::BLACK
-        });
+        window.pre_tick(CameraData::default(), window.res(), RGBA32::BLACK, None);
 
         let keyboard = Input::keyboard();
         if keyboard.key_pressed(Key::Enter) {

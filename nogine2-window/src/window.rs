@@ -1,7 +1,7 @@
 use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::{Duration, Instant}};
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
-use nogine2_graphics::{graphics::BeginRenderCmd, init_graphics};
+use nogine2_graphics::{colors::rgba::RGBA32, graphics::CameraData, init_graphics};
 
 use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetProcAddress, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetCursorPosCallback, glfwSetKeyCallback, glfwSetMouseButtonCallback, glfwSetScrollCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
 
@@ -78,7 +78,7 @@ impl Window {
     }
 
     /// Executes at the start of every frame.
-    pub fn pre_tick<'a>(&'a mut self, _cmd: BeginRenderCmd<'a>) {
+    pub fn pre_tick<'a>(&'a mut self, camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: Option<&'a ()>) {
         assert_main_thread!(self);
 
         PRE_TICK_EVS.read().unwrap().call(self);
