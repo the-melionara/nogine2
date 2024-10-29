@@ -1,7 +1,7 @@
 use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::{Duration, Instant}};
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
-use nogine2_graphics::{colors::rgba::RGBA32, graphics::CameraData, init_graphics};
+use nogine2_graphics::{colors::rgba::RGBA32, global_begin_render, global_end_render, graphics::CameraData, init_graphics};
 
 use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetProcAddress, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetCursorPosCallback, glfwSetKeyCallback, glfwSetMouseButtonCallback, glfwSetScrollCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
 
@@ -57,10 +57,12 @@ impl Window {
             glfwSetScrollCallback(window, glfw_callbacks::mouse_sroll_callback);
             glfwSetMouseButtonCallback(window, glfw_callbacks::mouse_button_callback);
 
-            init_graphics(|x| {
+            if !init_graphics(|x| {
                 let cstring = CString::new(x).unwrap();
                 glfwGetProcAddress(cstring.as_ptr())
-            });
+            }) {
+                crash!("Couldn't initialize graphics!");
+            }
 
             log_info!("NOGINE2: Window created");
             return Self {
@@ -78,9 +80,10 @@ impl Window {
     }
 
     /// Executes at the start of every frame.
-    pub fn pre_tick<'a>(&'a mut self, camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: Option<&'a ()>) {
+    pub fn pre_tick<'a>(&'a mut self, camera: CameraData, target_res: uvec2, clear_col: RGBA32, _pipeline: Option<&'a ()>) {
         assert_main_thread!(self);
 
+        global_begin_render(camera, target_res, clear_col, std::ptr::null());
         PRE_TICK_EVS.read().unwrap().call(self);
     }
 
@@ -89,6 +92,7 @@ impl Window {
         assert_main_thread!(self);
 
         Input::flush();
+        global_end_render();
         unsafe {
             glfwSwapBuffers(self.glfw_window);
             glfwPollEvents();

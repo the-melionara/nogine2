@@ -3,6 +3,8 @@ use std::{sync::RwLock, thread::ThreadId};
 use nogine2_core::{crash, math::vector2::vec2};
 
 pub mod vertex;
+pub mod defaults;
+pub mod shader;
 
 
 static GRAPHICS: RwLock<Graphics> = RwLock::new(Graphics::new());
@@ -23,7 +25,7 @@ impl Graphics {
     }
 
     pub(crate) fn init() {
-        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphic's singleton!") };
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
 
         graphics.thread = Some(std::thread::current().id());
     }
