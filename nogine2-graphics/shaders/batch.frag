@@ -2,7 +2,7 @@
 
 #define MAX_TEXTURES 16
 
-layout(location = 0) in vec4 fCol;
+layout(location = 0) out vec4 fCol;
 
 in vec4 vTint;
 in vec2 vUV;
@@ -11,7 +11,7 @@ flat in int vUserData;
 
 uniform sampler2D uTextures[MAX_TEXTURES];
 
-#define TEX_CASE(x) case x: fCol = texture(uTextures[x], vUV) * vTint; break
+#define TEX_CASE(x) case uint(x): fCol = texture(uTextures[x], vUV) * vTint; break
 void main() {
     switch (vTexID) {
         TEX_CASE(0);

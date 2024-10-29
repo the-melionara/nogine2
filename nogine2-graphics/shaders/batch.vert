@@ -14,7 +14,7 @@ flat out int vUserData;
 uniform mat3 uViewMat;
 
 void main() {
-    gl_Position = uViewMat * vec4(aPos, 0.0, 1.0);
+    gl_Position = vec4(uViewMat * vec3(aPos, 1.0), 1.0);
 
     vTint = aTint;
     vUV = aUV;
