@@ -2,6 +2,8 @@ use std::{sync::RwLock, thread::ThreadId};
 
 use nogine2_core::{crash, math::vector2::vec2};
 
+pub mod vertex;
+
 
 static GRAPHICS: RwLock<Graphics> = RwLock::new(Graphics::new());
 
