@@ -4,12 +4,13 @@ use nogine2_core::log_error;
 
 use super::{gl, gl_uint, shader::GlShader};
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct GlProgram {
     id: gl_uint,
 }
 
 impl GlProgram {
-    pub fn new(shaders: &[GlShader]) -> Option<Self> {
+    pub fn new(shaders: &[&GlShader]) -> Option<Self> {
         unsafe {
             let id = gl::CreateProgram();
             if id == 0 {
@@ -37,5 +38,11 @@ impl GlProgram {
             }
             return Some(Self { id });
         }
+    }
+}
+
+impl Drop for GlProgram {
+    fn drop(&mut self) {
+        unsafe { gl::DeleteProgram(self.id) };
     }
 }

@@ -12,6 +12,7 @@ pub enum GlShaderType {
     GlGeometryShader = gl::GEOMETRY_SHADER,
 }
 
+#[derive(Debug)]
 pub struct GlShader {
     id: gl_uint,
     typ: GlShaderType,
@@ -56,6 +57,14 @@ impl GlShader {
         self.id
     }
 }
+
+impl PartialEq for GlShader {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for GlShader { }
 
 impl Drop for GlShader {
     fn drop(&mut self) {
