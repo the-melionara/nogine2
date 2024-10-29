@@ -5,6 +5,7 @@ use crate::colors::rgba::RGBA32;
 pub mod buffer;
 pub mod vao;
 pub mod shader;
+pub mod program;
 
 mod gl;
 

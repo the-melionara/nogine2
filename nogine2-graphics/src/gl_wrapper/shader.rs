@@ -51,6 +51,10 @@ impl GlShader {
     pub fn typ(&self) -> GlShaderType {
         self.typ
     }
+
+    pub(super) fn id(&self) -> gl_uint {
+        self.id
+    }
 }
 
 impl Drop for GlShader {
