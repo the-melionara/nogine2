@@ -1,3 +1,5 @@
+use nogine2_core::math::{vector2::ivec2, vector3::ivec3};
+
 use crate::glfw::GLFWkey;
 
 use super::Action;
@@ -32,6 +34,28 @@ impl Keyboard {
     pub fn key_state(&self, key: Key) -> Action {
         let (index, lshift) = key.to_indices();
         return Action::from_bits_retain(((self.states[index] >> lshift) & 0b11) as u8);
+    }
+
+    /// Returns an axis from two keys.
+    pub fn axis1(&self, neg: Key, pos: Key) -> i32 {
+        return self.key(pos) as i32 - self.key(neg) as i32;
+    }
+    
+    /// Returns two axes from four keys.
+    pub fn axis2(&self, neg: (Key, Key), pos: (Key, Key)) -> ivec2 {
+        return ivec2(
+            self.key(pos.0) as i32 - self.key(neg.0) as i32,
+            self.key(pos.1) as i32 - self.key(neg.1) as i32,
+        );
+    }
+
+    /// Returns three axes from six keys.
+    pub fn axis3(&self, neg: (Key, Key, Key), pos: (Key, Key, Key)) -> ivec3 {
+        return ivec3(
+            self.key(pos.0) as i32 - self.key(neg.0) as i32,
+            self.key(pos.1) as i32 - self.key(neg.1) as i32,
+            self.key(pos.2) as i32 - self.key(neg.2) as i32,
+        );
     }
 
     pub(super) fn set_key_state(&mut self, key: Key, now_pressed: bool) {
