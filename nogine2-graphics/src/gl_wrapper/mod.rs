@@ -33,7 +33,7 @@ pub fn gl_clear(col: RGBA32) {
 pub fn gl_render_elements(indices_count: i32) {
     assert_expr!(indices_count >= 0);
     unsafe {
-        gl::DrawElements(gl::TRIANGLES, indices_count, gl::UNSIGNED_INT, std::ptr::null());
+        gl::DrawElements(gl::TRIANGLES, indices_count, gl::UNSIGNED_SHORT, std::ptr::null());
     }
 }
 

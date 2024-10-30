@@ -49,7 +49,7 @@ impl Graphics {
                 BatchVertex { pos: (&tf_mat * vec3(1.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::RIGHT, tex_id: 0, user_data: 0 },
                 BatchVertex { pos: (&tf_mat * vec3(1.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::ONE,   tex_id: 0, user_data: 0 },
         ]), GlBufferUsage::StaticDraw);
-        let ebo = GlBuffer::new(GlBufferTarget::GlElementArrayBuffer, to_byte_slice(&[0u32, 1, 2, 2, 3, 0]), GlBufferUsage::StaticDraw);
+        let ebo = GlBuffer::new(GlBufferTarget::GlElementArrayBuffer, to_byte_slice(&[0u16, 1, 2, 2, 3, 0]), GlBufferUsage::StaticDraw);
     
         let mut vao = GlVertexArray::new();
         vao.bind_vbo(&vbo, BatchVertex::VERT_ATTRIB_DEFINITIONS);
