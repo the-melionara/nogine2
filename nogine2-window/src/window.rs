@@ -1,6 +1,6 @@
 use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::{Duration, Instant}};
 
-use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2}};
+use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2, vec2}};
 use nogine2_graphics::{colors::rgba::RGBA32, global_begin_render, global_end_render, graphics::CameraData, init_graphics};
 
 use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetProcAddress, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetCursorPosCallback, glfwSetKeyCallback, glfwSetMouseButtonCallback, glfwSetScrollCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
@@ -144,6 +144,12 @@ impl Window {
         let mut res = ivec2::ZERO;
         unsafe { glfwGetFramebufferSize(self.glfw_window, &mut res.0, &mut res.1) };
         return uvec2::from(res);
+    }
+
+    /// Returns the aspect ratio of the window.
+    pub fn aspect_ratio(&self) -> f32 {
+        let res = vec2::from(self.res());
+        return res.0 / res.1;
     }
 
     /// Returns the window's title.
