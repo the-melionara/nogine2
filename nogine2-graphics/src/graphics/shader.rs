@@ -60,4 +60,12 @@ impl Shader {
         let gl_obj = GlProgram::new(&[&vert.gl_obj, &frag.gl_obj])?;
         return Some(Arc::new(Self { gl_obj }));
     }
+
+    pub(crate) fn use_shader(&self) -> bool {
+        self.gl_obj.use_program()
+    }
+
+    pub(crate) fn gl_obj(&self) -> &GlProgram {
+        &self.gl_obj
+    }
 }

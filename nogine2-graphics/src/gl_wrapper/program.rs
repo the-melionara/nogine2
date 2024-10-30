@@ -39,6 +39,21 @@ impl GlProgram {
             return Some(Self { id });
         }
     }
+
+    pub fn use_program(&self) -> bool {
+        unsafe {
+            gl::UseProgram(self.id);
+            if gl::GetError() == gl::INVALID_OPERATION {
+                log_error!("GL_ERROR: Couldn't make the program {} part of the current state!", self.id);
+                return false;
+            }
+            return true;
+        }
+    }
+
+    pub fn id(&self) -> gl_uint {
+        self.id
+    }
 }
 
 impl Drop for GlProgram {
