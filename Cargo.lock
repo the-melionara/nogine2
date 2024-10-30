@@ -29,7 +29,7 @@ dependencies = [
 [[package]]
 name = "gamedev-math"
 version = "0.1.0"
-source = "git+https://github.com/JustMel69/gamedev-math.git#db3c8b8f0a368d928364ce348ad4f103b9e2c130"
+source = "git+https://github.com/JustMel69/gamedev-math.git#728ae5fbdc6c6b02cbc0e27c0a30edddf6d8967b"
 
 [[package]]
 name = "gl_generator"
