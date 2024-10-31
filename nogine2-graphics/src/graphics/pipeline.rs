@@ -1,3 +1,5 @@
+use nogine2_core::bytesize::ByteSize;
+
 #[derive(Debug, Clone)]
 pub struct RenderStats {
     /// Holds all the information related to the batch renderer.
@@ -30,12 +32,21 @@ pub struct BatchRenderStats {
     pub verts: usize,
 
     /// Number of triangles rendered.
-    pub triangles: usize
+    pub triangles: usize,
+
+    /// Allocated memory size.
+    pub allocated_memory: ByteSize,
+
+    /// Memory being used.
+    pub on_use_memory: ByteSize,
 }
 
 impl BatchRenderStats {
     pub const fn new() -> Self {
-        Self { draw_calls: 0, skipped_submissions: 0, rendered_submissions: 0, verts: 0, triangles: 0 }
+        Self {
+            draw_calls: 0, skipped_submissions: 0, rendered_submissions: 0, verts: 0, triangles: 0,
+            allocated_memory: ByteSize::new(0), on_use_memory: ByteSize::new(0),
+        }
     }
 
     pub fn total_submissions(&self) -> usize {

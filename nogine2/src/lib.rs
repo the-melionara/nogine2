@@ -1,5 +1,5 @@
 // Re-exports from nogine2-core
-pub use nogine2_core::{crash, log_info, log_warn, log_error, math};
+pub use nogine2_core::{crash, log_info, log_warn, log_error, math, bytesize};
 
 // Re-exports from nogine2-window
 pub use nogine2_window::{window, input};

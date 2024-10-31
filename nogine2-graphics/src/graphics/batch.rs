@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use nogine2_core::{log_error, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}}};
+use nogine2_core::{bytesize::ByteSize, log_error, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}}};
 
 use crate::gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, gl_uniform_loc, to_byte_slice, vao::GlVertexArray};
 
@@ -69,10 +69,17 @@ impl BatchData {
     }
 
     pub fn render(&mut self) -> BatchRenderStats {
+        let mut on_use_size = 0;
         for call in &self.render_calls {
             call.render(&self.view_mat);
             self.stats.draw_calls += 1;
+            on_use_size += call.on_use_size();
         }
+
+        const BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * BatchBuffers::MAX_VERTS + size_of::<u16>() * BatchBuffers::MAX_INDICES;
+        self.stats.allocated_memory = ByteSize::new(((self.render_calls.len() + self.pooled_buffers.len()) * BATCH_BUFFER_SIZE) as u64);
+        self.stats.on_use_memory = ByteSize::new(on_use_size as u64);
+
         return self.stats.clone();
     } 
 
@@ -143,6 +150,10 @@ impl BatchRenderCall {
     fn push(&mut self, verts: &[BatchVertex], indices: &mut [u16]) {
         self.buffers.push(verts, indices);
     }
+
+    fn on_use_size(&self) -> usize {
+        self.buffers.on_use_size()
+    }
 }
 
 
@@ -168,6 +179,10 @@ impl BatchBuffers {
         };
         item.vao.bind_vbo(&item.vbo, BatchVertex::VERT_ATTRIB_DEFINITIONS);
         return item;
+    }
+
+    fn on_use_size(&self) -> usize {
+        self.vlen * size_of::<BatchVertex>() + self.elen * size_of::<u16>()
     }
 
     fn fits(&self, verts: usize, indices: usize) -> bool {
