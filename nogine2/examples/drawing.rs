@@ -20,6 +20,6 @@ fn main() {
         Graphics::draw_rect(vec2(-0.5, -0.5), 0.0, vec2::ONE, RGBA32::GREEN);
         Graphics::draw_rect(vec2( 1.0, -0.5), 0.0, vec2::ONE, RGBA32::BLUE);
 
-        window.post_tick();
+        dbg!(window.post_tick());
     }
 }
