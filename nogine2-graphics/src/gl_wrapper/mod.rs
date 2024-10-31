@@ -1,6 +1,6 @@
 use std::ffi::{c_char, c_void};
 
-use nogine2_core::{assert_expr, log_info, math::rect::IRect};
+use nogine2_core::{assert_expr, math::rect::IRect};
 use program::GlProgram;
 
 use crate::colors::rgba::RGBA32;

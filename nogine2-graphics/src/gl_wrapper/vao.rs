@@ -53,6 +53,10 @@ impl GlVertexArray {
             }
         }
     }
+
+    pub fn bind(&self) {
+        unsafe { gl::BindVertexArray(self.id) };
+    }
 }
 
 impl Drop for GlVertexArray {
