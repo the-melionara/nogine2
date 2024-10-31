@@ -1,20 +1,23 @@
 use std::{sync::RwLock, thread::ThreadId};
 
-use defaults::DefaultShaders;
-use nogine2_core::{assert_expr, crash, log_error, math::{mat3x3::mat3, vector2::vec2, vector3::vec3}};
+use batch::{BatchData, BatchPushCmd};
+use nogine2_core::{assert_expr, crash, math::{mat3x3::mat3, vector2::{uvec2, vec2}, vector3::vec3}};
+use pipeline::RenderStats;
 use vertex::BatchVertex;
 
-use crate::{colors::{rgba::RGBA32, Color}, gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, gl_uniform_loc, to_byte_slice, vao::GlVertexArray}};
+use crate::colors::rgba::RGBA32;
 
 pub mod vertex;
 pub mod defaults;
 pub mod shader;
+pub mod pipeline;
 
+mod batch;
 
 static GRAPHICS: RwLock<Graphics> = RwLock::new(Graphics::new());
 
 pub struct Graphics {
-    view_mat: mat3,
+    batch_data: BatchData,
 
     render_started: bool,
     thread: Option<ThreadId>,
@@ -29,7 +32,7 @@ macro_rules! assert_main_thread {
 impl Graphics {
     const fn new() -> Self {
         Self {
-            view_mat: mat3::IDENTITY,
+            batch_data: BatchData::new(),
 
             render_started: false,
             thread: None,
@@ -37,37 +40,30 @@ impl Graphics {
     }
 
     pub fn draw_rect(pos: vec2, rot: f32, extents: vec2, color: RGBA32) {
-        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         assert_main_thread!(graphics);
         assert_expr!(graphics.render_started, "Render commands can only be called after Window::pre_tick!");
 
         let tf_mat = mat3::tf_matrix(pos, rot, extents.scale(vec2(1.0, -1.0)));
 
-        let vbo = GlBuffer::new(GlBufferTarget::GlArrayBuffer, to_byte_slice(&[
-                BatchVertex { pos: (&tf_mat * vec3(0.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::UP,    tex_id: 0, user_data: 0 },
-                BatchVertex { pos: (&tf_mat * vec3(0.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::ZERO,  tex_id: 0, user_data: 0 },
-                BatchVertex { pos: (&tf_mat * vec3(1.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::RIGHT, tex_id: 0, user_data: 0 },
-                BatchVertex { pos: (&tf_mat * vec3(1.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::ONE,   tex_id: 0, user_data: 0 },
-        ]), GlBufferUsage::StaticDraw);
-        let ebo = GlBuffer::new(GlBufferTarget::GlElementArrayBuffer, to_byte_slice(&[0u16, 1, 2, 2, 3, 0]), GlBufferUsage::StaticDraw);
+        let verts = &[
+            BatchVertex { pos: (&tf_mat * vec3(0.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::UP,    tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3(0.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::ZERO,  tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3(1.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::RIGHT, tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3(1.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::ONE,   tex_id: 0, user_data: 0 },
+        ];
+        let indices = &[0, 1, 2, 2, 3, 0];
     
-        let mut vao = GlVertexArray::new();
-        vao.bind_vbo(&vbo, BatchVertex::VERT_ATTRIB_DEFINITIONS);
-        ebo.bind();
-    
-        let shader = DefaultShaders::batch();
-        if !shader.use_shader() {
-            log_error!("GL_ERROR: Couldn't render!");
-            return;
-        }
-    
-        if let Some(view_mat_loc) = gl_uniform_loc(shader.gl_obj(), b"uViewMat\0") {
-            gl_uniform::set_mat3(view_mat_loc, &Graphics::view_mat());
-        }
-    
-        gl_render_elements(6);
+        graphics.batch_data.push(BatchPushCmd { verts, indices });
     }
 
+    /// Returns the current camera data.
+    pub fn camera() -> CameraData {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        assert_main_thread!(graphics);
+
+        return graphics.batch_data.camera();
+    }
 
     pub(crate) fn init() {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
@@ -75,26 +71,22 @@ impl Graphics {
         graphics.thread = Some(std::thread::current().id());
     }
 
-    pub(crate) fn begin_render(cam_data: CameraData) { 
+    pub(crate) fn begin_render(camera: CameraData, target_res: uvec2) { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         assert_main_thread!(graphics);
 
-        graphics.view_mat = mat3::tf_matrix(cam_data.center, 0.0, cam_data.extents.scale(vec2(1.0, -1.0)) * 0.5).inverse().unwrap_or(mat3::IDENTITY);
+        graphics.batch_data.setup_frame(camera, target_res);
         graphics.render_started = true;
     }
 
-    pub(crate) fn end_render() { 
+    pub(crate) fn end_render() -> RenderStats { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         assert_main_thread!(graphics);
 
         graphics.render_started = false;
-    }
+        let batch_stats = graphics.batch_data.render();
 
-    pub(crate) fn view_mat() -> mat3 {
-        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        return graphics.view_mat.clone();
+        return RenderStats { batch: batch_stats };
     }
 }
 

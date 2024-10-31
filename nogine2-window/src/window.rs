@@ -1,7 +1,7 @@
 use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::{Duration, Instant}};
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2, vec2}};
-use nogine2_graphics::{colors::rgba::RGBA32, global_begin_render, global_end_render, graphics::CameraData, init_graphics};
+use nogine2_graphics::{colors::rgba::RGBA32, global_begin_render, global_end_render, graphics::{pipeline::RenderStats, CameraData}, init_graphics};
 
 use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetProcAddress, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetCursorPosCallback, glfwSetKeyCallback, glfwSetMouseButtonCallback, glfwSetScrollCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
 
@@ -88,11 +88,11 @@ impl Window {
     }
 
     /// Executes at the end of every frame.
-    pub fn post_tick(&mut self) {
+    pub fn post_tick(&mut self) -> RenderStats {
         assert_main_thread!(self);
 
         Input::flush();
-        global_end_render();
+        let render_stats = global_end_render();
         unsafe {
             glfwSwapBuffers(self.glfw_window);
             glfwPollEvents();
@@ -107,6 +107,8 @@ impl Window {
         if !self.fullscreen() {
             self.best_res = self.res();
         }
+
+        return render_stats;
     }
 
     /// Sets vsync.
