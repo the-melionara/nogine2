@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use nogine2_core::{assert_expr, crash};
+use nogine2_core::{assert_expr, crash, main_thread::test_main_thread};
 
 use super::{gl, gl_isize, gl_uint};
 
@@ -43,6 +43,7 @@ impl GlBuffer {
     }
 
     pub fn preallocated(target: GlBufferTarget, size: gl_isize, usage: GlBufferUsage) -> Self {
+        test_main_thread();
         assert_expr!(size > 0);
         unsafe {
             let mut id = 0;
@@ -59,6 +60,7 @@ impl GlBuffer {
     }
 
     pub fn set(&mut self, data: &[u8], offset: isize) {
+        test_main_thread();
         assert_expr!(offset >= 0);
         assert_expr!(data.len() as isize + offset <= self.size);
 
@@ -69,6 +71,7 @@ impl GlBuffer {
     }
 
     pub fn bind(&self) {
+        test_main_thread();
         unsafe { gl::BindBuffer(self.target as u32, self.id) }
     }
 
@@ -79,6 +82,7 @@ impl GlBuffer {
 
 impl Drop for GlBuffer {
     fn drop(&mut self) {
+        test_main_thread();
         unsafe { gl::DeleteBuffers(1, &self.id) };
     }
 }

@@ -20,6 +20,8 @@ pub enum GlVertexAttribType {
     Float, Int, Uint
 }
 
+// !!!!!! test_main_thread() is not needed here because the user will never make this manually or
+// anything of the sorts. This is only used by utils that only exist on the main therad.
 
 pub struct GlVertexArray {
     id: gl_uint,

@@ -1,6 +1,6 @@
 use std::ffi::c_char;
 
-use nogine2_core::log_error;
+use nogine2_core::{log_error, main_thread::test_main_thread};
 
 use super::{gl, gl_uint};
 
@@ -21,6 +21,7 @@ pub struct GlShader {
 impl GlShader {
     /// `src` is not zero terminated
     pub fn new(typ: GlShaderType, src: &[u8]) -> Option<Self> {
+        test_main_thread();
         let (len, ptr) = (src.len() as i32, src.as_ptr() as *const c_char);
         unsafe {
             let id = gl::CreateShader(typ as u32);
@@ -68,6 +69,7 @@ impl Eq for GlShader { }
 
 impl Drop for GlShader {
     fn drop(&mut self) {
+        test_main_thread();
         unsafe { gl::DeleteShader(self.id) };
     }
 }

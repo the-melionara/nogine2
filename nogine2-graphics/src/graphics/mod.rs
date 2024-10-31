@@ -11,6 +11,7 @@ pub mod vertex;
 pub mod defaults;
 pub mod shader;
 pub mod pipeline;
+pub mod texture;
 
 mod batch;
 
@@ -87,6 +88,11 @@ impl Graphics {
         let batch_stats = graphics.batch_data.render();
 
         return RenderStats { batch: batch_stats };
+    }
+
+    pub(crate) fn assert_main_thread() {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        assert_main_thread!(graphics);
     }
 }
 

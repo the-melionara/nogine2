@@ -6,4 +6,7 @@ edition = "2021"
 [dependencies]
 nogine2-core = { path = "../nogine2-core" }
 nogine2-window = { path = "../nogine2-window" }
-nogine2-graphics = { path = "../nogine2-graphics" }
+nogine2-graphics = { path = "../nogine2-graphics", default-features = false }
+
+[features]
+image-loading = ["nogine2-graphics/image-loading"]

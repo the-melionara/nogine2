@@ -1,6 +1,6 @@
 use std::ffi::c_char;
 
-use nogine2_core::log_error;
+use nogine2_core::{log_error, main_thread::test_main_thread};
 
 use super::{gl, gl_uint, shader::GlShader};
 
@@ -11,6 +11,7 @@ pub struct GlProgram {
 
 impl GlProgram {
     pub fn new(shaders: &[&GlShader]) -> Option<Self> {
+        test_main_thread();
         unsafe {
             let id = gl::CreateProgram();
             if id == 0 {
@@ -41,6 +42,7 @@ impl GlProgram {
     }
 
     pub fn use_program(&self) -> bool {
+        //test_main_thread(); // not needed, this is only executed by the render utils inside the main thread
         unsafe {
             gl::UseProgram(self.id);
             if gl::GetError() == gl::INVALID_OPERATION {
@@ -58,6 +60,7 @@ impl GlProgram {
 
 impl Drop for GlProgram {
     fn drop(&mut self) {
+        test_main_thread();
         unsafe { gl::DeleteProgram(self.id) };
     }
 }

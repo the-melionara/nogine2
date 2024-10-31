@@ -4,6 +4,8 @@ use nogine2_core::assert_expr;
 
 use crate::gl_wrapper::{program::GlProgram, shader::{GlShader, GlShaderType}};
 
+use super::Graphics;
+
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
