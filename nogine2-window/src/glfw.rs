@@ -171,6 +171,7 @@ pub enum GLFWkey {
     RIGHT_ALT = 346,
     RIGHT_SUPER = 347,
     MENU = 348,
+    UNKNOWN = -1,
 }
 
 #[repr(i32)]

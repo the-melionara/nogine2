@@ -49,7 +49,9 @@ mod glfw_callbacks {
     }
 
     pub extern "C" fn key_callback(_: *mut GLFWwindow, key: GLFWkey, _: c_int, action: GLFWaction, _: c_int) {
-        Input::submit_key(key, action);
+        if key != GLFWkey::UNKNOWN {
+            Input::submit_key(key, action);
+        }
     }
 
     pub extern "C" fn cursor_pos_callback(_: *mut GLFWwindow, xpos: c_double, ypos: c_double) {
