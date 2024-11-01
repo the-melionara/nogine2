@@ -1,11 +1,12 @@
 use std::{ffi::c_void, sync::Arc};
 
 use nogine2_core::math::vector2::uvec2;
-use pixels::Pixels;
+use pixels::{PixelFormat, Pixels};
 
 use crate::gl_wrapper::texture::{GlTexture, GlTextureFiltering, GlTextureWrapping};
 
 pub mod pixels;
+pub mod rendertex;
 
 /// The handle of a texture. **Must only be used on the main thread!**
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +28,7 @@ pub struct Texture2D {
     sampling: TextureSampling,
     pixels: Option<Pixels>,
     dims: uvec2,
+    format: PixelFormat,
 }
 
 impl Texture2D {
@@ -45,7 +47,7 @@ impl Texture2D {
             pixel_data.data().as_ptr() as *const c_void
         ));
 
-        return Self { gl_obj, sampling, dims: pixel_data.dims(), pixels: Some(pixel_data) };
+        return Self { gl_obj, sampling, dims: pixel_data.dims(), format: pixel_data.format(), pixels: Some(pixel_data) };
     }
 
     /// Returns a reference to the pixel data from the pixel. It may not be available if the texture has been modified from the GPU.
@@ -77,6 +79,10 @@ impl Texture2D {
 
     pub fn sampling(&self) -> &TextureSampling {
         &self.sampling
+    }
+
+    pub fn pixel_format(&self) -> PixelFormat{
+        self.format
     }
 }
 
