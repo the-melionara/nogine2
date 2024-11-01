@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ByteSize {
     bytes: u64,
@@ -50,5 +52,13 @@ impl ByteSize {
 
     pub const fn as_pebibytes(&self) -> u64 {
         self.bytes >> 50
+    }
+}
+
+impl Add for ByteSize {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self { bytes: self.bytes + rhs.bytes }
     }
 }
