@@ -38,6 +38,13 @@ pub fn gl_additive_blend() {
     }
 }
 
+pub fn gl_subtractive_blend() {
+    unsafe {
+        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE);
+        gl::BlendEquation(gl::FUNC_REVERSE_SUBTRACT);
+    }
+}
+
 pub fn gl_multiplicative_blend() {
     unsafe {
         gl::BlendFunc(gl::DST_COLOR, gl::ZERO);

@@ -30,7 +30,7 @@ fn main() {
         
         Graphics::draw_texture(vec2::one(-1.0), 0.0, vec2::one(2.0), RGBA32::WHITE, &tr_tex);
 
-        Graphics::set_blending_mode(BlendingMode::Multiplicative);
+        Graphics::set_blending_mode(BlendingMode::Subtractive);
         pos += vec2::from(Input::keyboard().axis2((Key::Left, Key::Down), (Key::Right, Key::Up))) * window.ts();
         Graphics::draw_rect(pos, 0.0, vec2(1.0, 2.0), RGBA32::RED);
         Graphics::set_blending_mode(BlendingMode::AlphaMix);
