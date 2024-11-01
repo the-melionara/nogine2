@@ -68,19 +68,19 @@ impl BatchData {
         }
     }
 
-    pub fn render(&mut self) -> BatchRenderStats {
+    pub fn render(&self, stats: &mut BatchRenderStats) {
         let mut on_use_size = 0;
         for call in &self.render_calls {
             call.render(&self.view_mat);
-            self.stats.draw_calls += 1;
+            stats.draw_calls += 1;
             on_use_size += call.on_use_size();
         }
 
         const BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * BatchBuffers::MAX_VERTS + size_of::<u16>() * BatchBuffers::MAX_INDICES;
-        self.stats.allocated_memory = ByteSize::new(((self.render_calls.len() + self.pooled_buffers.len()) * BATCH_BUFFER_SIZE) as u64);
-        self.stats.on_use_memory = ByteSize::new(on_use_size as u64);
+        stats.allocated_memory = ByteSize::new(((self.render_calls.len() + self.pooled_buffers.len()) * BATCH_BUFFER_SIZE) as u64);
+        stats.on_use_memory = ByteSize::new(on_use_size as u64);
 
-        return self.stats.clone();
+        *stats = stats.clone() + self.stats.clone();
     } 
 
     pub fn camera(&self) -> CameraData {

@@ -3,11 +3,11 @@ use std::{sync::RwLock, thread::ThreadId};
 use batch::{BatchData, BatchPushCmd};
 use blending::BlendingMode;
 use nogine2_core::{assert_expr, crash, math::{mat3x3::mat3, vector2::{uvec2, vec2}, vector3::vec3}};
-use pipeline::RenderStats;
-use texture::{pixels::{PixelFormat, Pixels}, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
+use pipeline::{RenderPipeline, RenderStats, SceneData};
+use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 use vertex::BatchVertex;
 
-use crate::colors::rgba::RGBA32;
+use crate::colors::{rgba::RGBA32, Color};
 
 pub mod vertex;
 pub mod defaults;
@@ -27,6 +27,8 @@ pub struct Graphics {
     blending: BlendingMode,
 
     render_started: bool,
+    clear_col: RGBA32,
+    pipeline: Option<PipelinePtr>,
     thread: Option<ThreadId>,
 }
 
@@ -45,6 +47,8 @@ impl Graphics {
             blending: BlendingMode::AlphaMix,
 
             render_started: false,
+            clear_col: RGBA32::BLACK,
+            pipeline: None,
             thread: None,
         }
     }
@@ -140,24 +144,30 @@ impl Graphics {
         ).handle());
     }
 
-    pub(crate) fn begin_render(camera: CameraData, target_res: uvec2) { 
+    pub(crate) fn begin_render(camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         assert_main_thread!(graphics);
 
         graphics.batch_data.setup_frame(camera, target_res);
         graphics.render_started = true;
+        graphics.pipeline = Some(PipelinePtr(pipeline));
+        graphics.clear_col = clear_col;
     }
 
-    pub(crate) fn end_render() -> RenderStats { 
+    pub(crate) fn end_render(real_window_res: uvec2) -> RenderStats { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         assert_main_thread!(graphics);
+        assert_expr!(graphics.render_started, "Window::post_tick must be called after Window::pre_tick!");
 
         graphics.render_started = false;
-        let batch_stats = graphics.batch_data.render();
 
-        return RenderStats { batch: batch_stats };
+        let mut stats = RenderStats::new();
+        let render_pipeline = unsafe { graphics.pipeline.as_ref().unwrap().0.as_ref().unwrap() };
+        render_pipeline.render(&RenderTexture::to_screen(real_window_res), SceneData::new(&graphics.batch_data) , graphics.clear_col, &mut stats);
+        return stats;
     }
 }
+
 
 /// Represents the camera in Unit Space.
 #[derive(Debug, Clone, PartialEq)]
@@ -171,3 +181,8 @@ impl Default for CameraData {
         Self { center: vec2::ZERO, extents: vec2::ONE }
     }
 }
+
+
+struct PipelinePtr(pub *const dyn RenderPipeline);
+unsafe impl Sync for PipelinePtr {}
+unsafe impl Send for PipelinePtr {}

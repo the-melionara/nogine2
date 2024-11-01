@@ -1,5 +1,53 @@
-use nogine2_core::bytesize::ByteSize;
+use std::ops::Add;
 
+use nogine2_core::{bytesize::ByteSize, main_thread::test_main_thread, math::{rect::IRect, vector2::ivec2}};
+
+use crate::{colors::rgba::RGBA32, gl_wrapper::{framebuffer::GlFramebuffer, gl_viewport}};
+
+use super::{batch::BatchData, texture::rendertex::RenderTexture};
+
+/// Trait for customlizable render pipelines.
+pub trait RenderPipeline {
+    fn render(&self, target_rt: &RenderTexture, scene_data: SceneData<'_>, clear_col: RGBA32, stats: &mut RenderStats);
+}
+
+
+/// Holds all the required data for rendering a scene.
+pub struct SceneData<'a> {
+    batch_data: &'a BatchData,
+}
+
+impl<'a> SceneData<'a> {
+    pub(crate) fn new(batch_data: &'a BatchData) -> Self {
+        Self { batch_data }
+    }
+
+    /// Renders the scene data to a selected render texture.
+    pub fn render_to(&self, rt: &RenderTexture, stats: &mut RenderStats) {
+        test_main_thread();
+
+        rt.bind();
+
+        gl_viewport(IRect { start: ivec2::ZERO, end: rt.dims().into() });
+        self.batch_data.render(&mut stats.batch);
+        GlFramebuffer::to_screen().bind();
+    }
+}
+
+
+/// Default pipeline for rendering.
+#[derive(Debug, Clone, Copy)]
+pub struct DefaultPipeline;
+
+impl RenderPipeline for DefaultPipeline {
+    fn render(&self, target_rt: &RenderTexture, scene_data: SceneData<'_>, clear_col: RGBA32, stats: &mut RenderStats) {
+        target_rt.clear(clear_col);
+        scene_data.render_to(target_rt, stats);
+    }
+}
+
+
+/// Holds statistics about a rendered frame.
 #[derive(Debug, Clone)]
 pub struct RenderStats {
     /// Holds all the information related to the batch renderer.
@@ -51,5 +99,21 @@ impl BatchRenderStats {
 
     pub fn total_submissions(&self) -> usize {
         self.skipped_submissions + self.rendered_submissions
+    }
+}
+
+impl Add for BatchRenderStats {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            draw_calls: self.draw_calls + rhs.draw_calls,
+            skipped_submissions: self.skipped_submissions + rhs.skipped_submissions,
+            rendered_submissions: self.rendered_submissions + rhs.rendered_submissions,
+            verts: self.verts + rhs.verts,
+            triangles: self.triangles + rhs.triangles,
+            allocated_memory: self.allocated_memory + rhs.allocated_memory,
+            on_use_memory: self.on_use_memory + rhs.on_use_memory,
+        }
     }
 }
