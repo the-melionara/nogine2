@@ -10,3 +10,7 @@ nogine2-graphics = { path = "../nogine2-graphics", default-features = false }
 
 [features]
 image-loading = ["nogine2-graphics/image-loading"]
+
+[[example]]
+name = "drawing"
+required-features = ["image-loading"]

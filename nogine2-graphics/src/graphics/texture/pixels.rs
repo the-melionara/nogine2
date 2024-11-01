@@ -39,7 +39,7 @@ impl Pixels {
     pub fn load(path: impl AsRef<std::path::Path>) -> Result<Self, PixelLoadingError> {
         use image::{ColorType, ImageReader};
 
-        let img = ImageReader::open(path).map_err(|e| PixelLoadingError::IOError(e))?.decode().map_err(|e| PixelLoadingError::ImageError(e))?.flipv();
+        let img = ImageReader::open(path).map_err(|e| PixelLoadingError::IOError(e))?.decode().map_err(|e| PixelLoadingError::ImageError(e))?;
         let dims = uvec2(img.width(), img.height());
         
         match img.color() {

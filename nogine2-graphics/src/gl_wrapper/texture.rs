@@ -61,6 +61,16 @@ impl GlTexture {
             gl::TexSubImage2D(gl::TEXTURE_2D, 0, offset.0 as i32, offset.1 as i32, dims.0 as i32, dims.1 as i32, format as u32, gl::UNSIGNED_BYTE, data);
         }
     }
+
+    pub fn bind_to(&self, target: u32) {
+        test_main_thread();
+        assert_expr!(target < gl::MAX_TEXTURE_IMAGE_UNITS);
+
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + target);
+            gl::BindTexture(gl::TEXTURE_2D, self.id);
+        }
+    }
 }
 
 impl PartialEq for GlTexture {

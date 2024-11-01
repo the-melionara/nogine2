@@ -70,6 +70,11 @@ pub mod gl_uniform {
         //test_main_thread(); // not needed
         unsafe { gl::UniformMatrix3fv(loc, 1, gl::TRUE, mat.ptr()) };
     }
+
+    pub fn set_i32_arr(loc: i32, arr: &[i32]) {
+        //test_main_thread(); // not needed
+        unsafe { gl::Uniform1iv(loc, arr.len() as i32, arr.as_ptr()) };
+    }
 }
 
 pub fn to_byte_slice<T>(slice: &[T]) -> &[u8] {

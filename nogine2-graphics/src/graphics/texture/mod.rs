@@ -13,6 +13,12 @@ pub struct TextureHandle {
     gl_obj: Arc<GlTexture>,
 }
 
+impl TextureHandle {
+    pub(crate) fn bind_to(&self, target: u32) {
+        self.gl_obj.bind_to(target);
+    }
+}
+
 
 /// A 2D texture. **Must only be used on the main thread!**
 #[derive(Debug, Clone)]
@@ -20,6 +26,7 @@ pub struct Texture2D {
     gl_obj: Arc<GlTexture>,
     sampling: TextureSampling,
     pixels: Option<Pixels>,
+    dims: uvec2,
 }
 
 impl Texture2D {
@@ -38,7 +45,7 @@ impl Texture2D {
             pixel_data.data().as_ptr() as *const c_void
         ));
 
-        return Self { gl_obj, sampling, pixels: Some(pixel_data) };
+        return Self { gl_obj, sampling, dims: pixel_data.dims(), pixels: Some(pixel_data) };
     }
 
     /// Returns a reference to the pixel data from the pixel. It may not be available if the texture has been modified from the GPU.
@@ -61,6 +68,11 @@ impl Texture2D {
         if let Some(pixels) = &self.pixels {
             self.gl_obj.set(uvec2::ZERO, pixels.dims(), pixels.format().into(), pixels.data().as_ptr() as *const c_void);
         }
+    }
+
+    /// Returns the resolution of the texture.
+    pub fn dims(&self) -> uvec2 {
+        self.dims
     }
 
     pub fn sampling(&self) -> &TextureSampling {

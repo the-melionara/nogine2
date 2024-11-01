@@ -4,7 +4,7 @@ use nogine2_core::{bytesize::ByteSize, log_error, math::{mat3x3::mat3, rect::Rec
 
 use crate::gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, gl_uniform_loc, to_byte_slice, vao::GlVertexArray};
 
-use super::{defaults::DefaultShaders, pipeline::BatchRenderStats, vertex::BatchVertex, CameraData};
+use super::{defaults::DefaultShaders, pipeline::BatchRenderStats, texture::TextureHandle, vertex::BatchVertex, CameraData};
 
 pub struct BatchData {
     render_calls: Vec<BatchRenderCall>,
@@ -35,7 +35,7 @@ impl BatchData {
         }
         self.stats.rendered_submissions += 1;
 
-        let verts = cmd.verts.iter().copied().map(|mut x| {
+        let mut verts = cmd.verts.iter().copied().map(|mut x| {
             x.pos = snap(x.pos, self.snapping);
             return x;
         }).collect::<Vec<_>>();
@@ -44,8 +44,8 @@ impl BatchData {
         self.stats.verts += verts.len();
         self.stats.triangles += indices.len() / 3;
 
-        let cursor = self.render_call_cursor(verts.len(), indices.len());
-        self.render_calls[cursor].push(&verts, &mut indices);
+        let cursor = self.render_call_cursor(verts.len(), indices.len(), &cmd.texture);
+        self.render_calls[cursor].push(&mut verts, &mut indices, cmd.texture);
     }
 
     pub fn setup_frame(&mut self, mut camera: CameraData, target_res: uvec2) {
@@ -87,9 +87,9 @@ impl BatchData {
         self.camera.clone()
     }
 
-    fn render_call_cursor(&mut self, verts_len: usize, indices_len: usize) -> usize {
+    fn render_call_cursor(&mut self, verts_len: usize, indices_len: usize, texture: &TextureHandle) -> usize {
         if let Some(last) = self.render_calls.last() {
-            if last.allows(verts_len, indices_len) {
+            if last.allows(verts_len, indices_len, texture) {
                 return self.render_calls.len() - 1;
             }
         }
@@ -109,16 +109,21 @@ impl BatchData {
 pub struct BatchPushCmd<'a> {
     pub verts: &'a [BatchVertex],
     pub indices: &'a [u16],
+    pub texture: TextureHandle,
 }
 
 
 struct BatchRenderCall {
     buffers: BatchBuffers,
+    textures: Vec<TextureHandle>,
 }
 
 impl BatchRenderCall {
+    const MAX_TEXTURES: usize = 16;
+    const TEXTURES: [i32; Self::MAX_TEXTURES] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    
     fn new(buffers: BatchBuffers) -> Self {
-        Self { buffers }
+        Self { buffers, textures: Vec::new() }
     }
 
     fn render(&self, view_mat: &mat3) {
@@ -129,11 +134,19 @@ impl BatchRenderCall {
             log_error!("GL_ERROR: Couldn't render!");
             return;
         }
+
+        for (i, t) in self.textures.iter().enumerate() {
+            t.bind_to(i as u32);
+        }
     
         if let Some(view_mat_loc) = gl_uniform_loc(shader.gl_obj(), b"uViewMat\0") {
             gl_uniform::set_mat3(view_mat_loc, view_mat);
         }
-    
+
+        if let Some(textures_loc) = gl_uniform_loc(shader.gl_obj(), b"uTextures\0") {
+            gl_uniform::set_i32_arr(textures_loc, &Self::TEXTURES);
+        }
+
         gl_render_elements(indices_len);
     }
 
@@ -143,11 +156,23 @@ impl BatchRenderCall {
         self.buffers
     }
 
-    fn allows(&self, verts_len: usize, indices_len: usize) -> bool {
-        self.buffers.fits(verts_len, indices_len)
+    fn allows(&self, verts_len: usize, indices_len: usize, texture: &TextureHandle) -> bool {
+        self.buffers.fits(verts_len, indices_len) && (self.textures.len() < Self::MAX_TEXTURES || self.textures.contains(texture))
     }
 
-    fn push(&mut self, verts: &[BatchVertex], indices: &mut [u16]) {
+    fn push(&mut self, verts: &mut [BatchVertex], indices: &mut [u16], texture: TextureHandle) {
+        let tex_id = match self.textures.iter().position(|t| t == &texture) {
+            Some(i) => i as u32,
+            None => {
+                self.textures.push(texture);
+                (self.textures.len() - 1) as u32
+            },
+        };
+
+        for v in &mut *verts {
+            v.tex_id = tex_id;
+        }
+
         self.buffers.push(verts, indices);
     }
 

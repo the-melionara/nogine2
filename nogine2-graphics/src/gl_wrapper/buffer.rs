@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::ffi::c_void;
 
 use nogine2_core::{assert_expr, crash, main_thread::test_main_thread};
