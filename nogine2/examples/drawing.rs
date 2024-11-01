@@ -7,8 +7,7 @@ fn main() {
     window.set_vsync(true);
 
     let texture = Texture2D::load("assets/jerma.jpeg", TextureSampling { filtering: TextureFiltering::Nearest, wrapping: TextureWrapping::Repeat }).unwrap();
-
-    Graphics::set_pixels_per_unit(350.0);
+    let tr_tex = Texture2D::load("assets/transparent_thingy.png", TextureSampling { filtering: TextureFiltering::Nearest, wrapping: TextureWrapping::Clamp }).unwrap();
 
     let mut center = vec2::ZERO;
     while window.is_open() {
@@ -20,9 +19,15 @@ fn main() {
         Graphics::draw_rect(vec2(-1.5, -0.75), 0.0, vec2::one(1.5), RGBA32::YELLOW);
         Graphics::draw_rect(vec2( 0.0, -0.75), 0.0, vec2::one(1.5), RGBA32::CYAN);
 
+        Graphics::set_pixels_per_unit(350.0);
+
         Graphics::draw_texture(vec2(-2.0, -0.5), 0.0, vec2::ONE, RGBA32::RED, &texture);
         Graphics::draw_texture(vec2(-0.5, -0.5), 0.0, vec2::ONE, RGBA32::GREEN, &texture);
         Graphics::draw_texture(vec2( 1.0, -0.5), 0.0, vec2::ONE, RGBA32::BLUE, &texture);
+
+        Graphics::set_pixels_per_unit(16.0);
+        
+        Graphics::draw_texture(vec2::one(-1.0), 0.0, vec2::one(2.0), RGBA32::WHITE, &tr_tex);
 
         dbg!(window.post_tick());
     }
