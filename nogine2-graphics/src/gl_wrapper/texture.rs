@@ -71,6 +71,10 @@ impl GlTexture {
             gl::BindTexture(gl::TEXTURE_2D, self.id);
         }
     }
+
+    pub fn id(&self) -> u32 {
+        self.id
+    }
 }
 
 impl PartialEq for GlTexture {

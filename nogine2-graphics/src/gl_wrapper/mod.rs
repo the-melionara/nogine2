@@ -10,6 +10,7 @@ pub mod vao;
 pub mod shader;
 pub mod program;
 pub mod texture;
+pub mod framebuffer;
 
 mod gl;
 
