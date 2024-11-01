@@ -38,6 +38,13 @@ pub fn gl_additive_blend() {
     }
 }
 
+pub fn gl_multiplicative_blend() {
+    unsafe {
+        gl::BlendFunc(gl::DST_COLOR, gl::ZERO);
+        gl::BlendEquation(gl::FUNC_ADD);
+    }
+}
+
 pub fn gl_clear(col: RGBA32) {
     //test_main_thread(); // not needed
     unsafe {
