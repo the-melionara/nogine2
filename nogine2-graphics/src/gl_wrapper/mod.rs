@@ -21,9 +21,20 @@ pub fn gl_load(f: impl Fn(&str) -> *const c_void) {
 }
 
 pub fn gl_enable_blend() {
+    unsafe { gl::Enable(gl::BLEND) };
+}
+
+pub fn gl_alpha_blend() {
     unsafe {
-        gl::Enable(gl::BLEND);
         gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        gl::BlendEquation(gl::FUNC_ADD);
+    }
+}
+
+pub fn gl_additive_blend() {
+    unsafe {
+        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE);
+        gl::BlendEquation(gl::FUNC_ADD);
     }
 }
 

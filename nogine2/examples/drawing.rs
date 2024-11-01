@@ -1,4 +1,4 @@
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{texture::{pixels::Pixels, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, Graphics}, input::{keyboard::Key, Input}, math::vector2::{uvec2, vec2}, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{blending::BlendingMode, texture::{pixels::Pixels, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, Graphics}, input::{keyboard::Key, Input}, math::vector2::{uvec2, vec2}, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -10,6 +10,7 @@ fn main() {
     let tr_tex = Texture2D::load("assets/transparent_thingy.png", TextureSampling { filtering: TextureFiltering::Nearest, wrapping: TextureWrapping::Clamp }).unwrap();
 
     let mut center = vec2::ZERO;
+    let mut pos = vec2::ZERO;
     while window.is_open() {
         center += vec2::from(Input::keyboard().axis2((Key::A, Key::S), (Key::D, Key::W))) * window.ts();
         window.pre_tick(CameraData { center, extents: vec2(window.aspect_ratio(), 1.0) * 5.0 }, window.res(), RGBA32::BLACK, None);
@@ -28,6 +29,11 @@ fn main() {
         Graphics::set_pixels_per_unit(16.0);
         
         Graphics::draw_texture(vec2::one(-1.0), 0.0, vec2::one(2.0), RGBA32::WHITE, &tr_tex);
+
+        Graphics::set_blending_mode(BlendingMode::Additive);
+        pos += vec2::from(Input::keyboard().axis2((Key::Left, Key::Down), (Key::Right, Key::Up))) * window.ts();
+        Graphics::draw_rect(pos, 0.0, vec2(1.0, 2.0), RGBA32::RED);
+        Graphics::set_blending_mode(BlendingMode::AlphaMix);
 
         dbg!(window.post_tick());
     }

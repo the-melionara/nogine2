@@ -4,7 +4,7 @@ use nogine2_core::{bytesize::ByteSize, log_error, math::{mat3x3::mat3, rect::Rec
 
 use crate::gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, gl_uniform_loc, to_byte_slice, vao::GlVertexArray};
 
-use super::{defaults::DefaultShaders, pipeline::BatchRenderStats, texture::TextureHandle, vertex::BatchVertex, CameraData};
+use super::{blending::BlendingMode, defaults::DefaultShaders, pipeline::BatchRenderStats, texture::TextureHandle, vertex::BatchVertex, CameraData};
 
 pub struct BatchData {
     render_calls: Vec<BatchRenderCall>,
@@ -44,7 +44,7 @@ impl BatchData {
         self.stats.verts += verts.len();
         self.stats.triangles += indices.len() / 3;
 
-        let cursor = self.render_call_cursor(verts.len(), indices.len(), &cmd.texture);
+        let cursor = self.render_call_cursor(verts.len(), indices.len(), &cmd.texture, cmd.blending);
         self.render_calls[cursor].push(&mut verts, &mut indices, cmd.texture);
     }
 
@@ -87,14 +87,14 @@ impl BatchData {
         self.camera.clone()
     }
 
-    fn render_call_cursor(&mut self, verts_len: usize, indices_len: usize, texture: &TextureHandle) -> usize {
+    fn render_call_cursor(&mut self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode) -> usize {
         if let Some(last) = self.render_calls.last() {
-            if last.allows(verts_len, indices_len, texture) {
+            if last.allows(verts_len, indices_len, texture, blending) {
                 return self.render_calls.len() - 1;
             }
         }
         let buffers = self.make_or_fetch_buffers();
-        self.render_calls.push(BatchRenderCall::new(buffers));
+        self.render_calls.push(BatchRenderCall::new(buffers, blending));
         return self.render_calls.len() - 1;
     }
 
@@ -110,20 +110,22 @@ pub struct BatchPushCmd<'a> {
     pub verts: &'a [BatchVertex],
     pub indices: &'a [u16],
     pub texture: TextureHandle,
+    pub blending: BlendingMode,
 }
 
 
 struct BatchRenderCall {
     buffers: BatchBuffers,
     textures: Vec<TextureHandle>,
+    blending: BlendingMode,
 }
 
 impl BatchRenderCall {
     const MAX_TEXTURES: usize = 16;
     const TEXTURES: [i32; Self::MAX_TEXTURES] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     
-    fn new(buffers: BatchBuffers) -> Self {
-        Self { buffers, textures: Vec::new() }
+    fn new(buffers: BatchBuffers, blending: BlendingMode) -> Self {
+        Self { buffers, textures: Vec::new(), blending }
     }
 
     fn render(&self, view_mat: &mat3) {
@@ -147,6 +149,8 @@ impl BatchRenderCall {
             gl_uniform::set_i32_arr(textures_loc, &Self::TEXTURES);
         }
 
+        self.blending.apply();
+
         gl_render_elements(indices_len);
     }
 
@@ -156,8 +160,8 @@ impl BatchRenderCall {
         self.buffers
     }
 
-    fn allows(&self, verts_len: usize, indices_len: usize, texture: &TextureHandle) -> bool {
-        self.buffers.fits(verts_len, indices_len) && (self.textures.len() < Self::MAX_TEXTURES || self.textures.contains(texture))
+    fn allows(&self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode) -> bool {
+        self.buffers.fits(verts_len, indices_len) && (self.textures.len() < Self::MAX_TEXTURES || self.textures.contains(texture)) && self.blending == blending
     }
 
     fn push(&mut self, verts: &mut [BatchVertex], indices: &mut [u16], texture: TextureHandle) {

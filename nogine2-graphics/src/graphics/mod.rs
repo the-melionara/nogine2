@@ -1,6 +1,7 @@
 use std::{sync::RwLock, thread::ThreadId};
 
 use batch::{BatchData, BatchPushCmd};
+use blending::BlendingMode;
 use nogine2_core::{assert_expr, crash, math::{mat3x3::mat3, vector2::{uvec2, vec2}, vector3::vec3}};
 use pipeline::RenderStats;
 use texture::{pixels::{PixelFormat, Pixels}, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
@@ -13,6 +14,7 @@ pub mod defaults;
 pub mod shader;
 pub mod pipeline;
 pub mod texture;
+pub mod blending;
 
 mod batch;
 
@@ -22,6 +24,7 @@ pub struct Graphics {
     batch_data: BatchData,
     white_texture: Option<TextureHandle>,
     tex_ppu: f32,
+    blending: BlendingMode,
 
     render_started: bool,
     thread: Option<ThreadId>,
@@ -39,6 +42,7 @@ impl Graphics {
             batch_data: BatchData::new(),
             white_texture: None,
             tex_ppu: 1.0,
+            blending: BlendingMode::AlphaMix,
 
             render_started: false,
             thread: None,
@@ -60,8 +64,9 @@ impl Graphics {
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
    
+        let blending = graphics.blending;
         let white_texture = graphics.white_texture.clone().unwrap();
-        graphics.batch_data.push(BatchPushCmd { verts, indices, texture: white_texture });
+        graphics.batch_data.push(BatchPushCmd { verts, indices, texture: white_texture, blending });
     }
 
     pub fn draw_texture(pos: vec2, rot: f32, scale: vec2, tint: RGBA32, texture: &Texture2D) {
@@ -80,7 +85,8 @@ impl Graphics {
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
 
-        graphics.batch_data.push(BatchPushCmd { verts, indices, texture: texture.handle() });
+        let blending = graphics.blending;
+        graphics.batch_data.push(BatchPushCmd { verts, indices, texture: texture.handle(), blending });
     }
 
     /// Returns the current camera data.
@@ -106,6 +112,22 @@ impl Graphics {
         assert_main_thread!(graphics);
 
         graphics.tex_ppu = ppu;
+    }
+
+    /// Returns the active blending mode.
+    pub fn blending_mode() -> BlendingMode {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        assert_main_thread!(graphics);
+
+        return graphics.blending;
+    }
+
+    /// Sets the active blending mode.
+    pub fn set_blending_mode(blending: BlendingMode) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        assert_main_thread!(graphics);
+
+        graphics.blending = blending;
     }
 
     pub(crate) fn init() {
