@@ -1,13 +1,12 @@
 use std::{sync::RwLock, thread::ThreadId};
 
-use batch::{BatchData, BatchPushCmd};
 use blending::BlendingMode;
-use nogine2_core::{assert_expr, crash, math::{mat3x3::mat3, vector2::{uvec2, vec2}, vector3::vec3}};
-use pipeline::{RenderPipeline, RenderStats, SceneData};
-use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
-use vertex::BatchVertex;
+use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
+use pipeline::{RenderPipeline, RenderStats};
+use scope::{RectSubmitCmd, RenderScope};
+use texture::{pixels::{PixelFormat, Pixels}, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
-use crate::colors::{rgba::RGBA32, Color};
+use crate::colors::rgba::RGBA32;
 
 pub mod vertex;
 pub mod defaults;
@@ -15,123 +14,71 @@ pub mod shader;
 pub mod pipeline;
 pub mod texture;
 pub mod blending;
+pub mod scope;
 
 mod batch;
 
 static GRAPHICS: RwLock<Graphics> = RwLock::new(Graphics::new());
 
 pub struct Graphics {
-    batch_data: BatchData,
+    active_scope: RenderScope,
     white_texture: Option<TextureHandle>,
-    tex_ppu: f32,
-    blending: BlendingMode,
 
-    render_started: bool,
-    clear_col: RGBA32,
-    pipeline: Option<PipelinePtr>,
     thread: Option<ThreadId>,
-}
-
-macro_rules! assert_main_thread {
-    ($val:expr) => {
-        nogine2_core::assert_expr!($val.thread == Some(std::thread::current().id()), "You can only call this function from the main thread after initializing the window!");
-    };
 }
 
 impl Graphics {
     const fn new() -> Self {
         Self {
-            batch_data: BatchData::new(),
+            active_scope: RenderScope::new(),
             white_texture: None,
-            tex_ppu: 1.0,
-            blending: BlendingMode::AlphaMix,
 
-            render_started: false,
-            clear_col: RGBA32::BLACK,
-            pipeline: None,
             thread: None,
         }
     }
 
     pub fn draw_rect(pos: vec2, rot: f32, extents: vec2, color: RGBA32) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-        assert_expr!(graphics.render_started, "Render commands can only be called after Window::pre_tick!");
 
-        let tf_mat = mat3::tf_matrix(pos, rot, extents.scale(vec2(1.0, -1.0)));
-
-        let verts = &[
-            BatchVertex { pos: (&tf_mat * vec3(0.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::UP,    tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(0.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::ZERO,  tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(1.0, 1.0, 1.0)).xy(), tint: color, uv: vec2::RIGHT, tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(1.0, 0.0, 1.0)).xy(), tint: color, uv: vec2::ONE,   tex_id: 0, user_data: 0 },
-        ];
-        let indices = &[0, 1, 2, 2, 3, 0];
-   
-        let blending = graphics.blending;
         let white_texture = graphics.white_texture.clone().unwrap();
-        graphics.batch_data.push(BatchPushCmd { verts, indices, texture: white_texture, blending });
+        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [color; 4], texture: white_texture, uv_rect: Rect::IDENT });
     }
 
     pub fn draw_texture(pos: vec2, rot: f32, scale: vec2, tint: RGBA32, texture: &Texture2D) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-        assert_expr!(graphics.render_started, "Render commands can only be called after Window::pre_tick!");
 
-        let extents = vec2::from(texture.dims()).scale(scale) / graphics.tex_ppu;
-        let tf_mat = mat3::tf_matrix(pos, rot, extents.scale(vec2(1.0, -1.0)));
-
-        let verts = &[
-            BatchVertex { pos: (&tf_mat * vec3(0.0, 0.0, 1.0)).xy(), tint, uv: vec2::UP,    tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(0.0, 1.0, 1.0)).xy(), tint, uv: vec2::ZERO,  tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(1.0, 1.0, 1.0)).xy(), tint, uv: vec2::RIGHT, tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(1.0, 0.0, 1.0)).xy(), tint, uv: vec2::ONE,   tex_id: 0, user_data: 0 },
-        ];
-        let indices = &[0, 1, 2, 2, 3, 0];
-
-        let blending = graphics.blending;
-        graphics.batch_data.push(BatchPushCmd { verts, indices, texture: texture.handle(), blending });
+        let extents = vec2::from(texture.dims()).scale(scale) / graphics.active_scope.pixels_per_unit();
+        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [tint; 4], texture: texture.handle(), uv_rect: Rect::IDENT });
     }
 
     /// Returns the current camera data.
     pub fn camera() -> CameraData {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        return graphics.batch_data.camera();
+        return graphics.active_scope.camera();
     }
 
     /// Returns the pixels per unit for textures.
     pub fn pixels_per_unit() -> f32 {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        return graphics.tex_ppu;
+        return graphics.active_scope.pixels_per_unit();
     }
 
     /// Sets the pixels per unit for textures. Will panic if `ppu <= 0.0`.
     pub fn set_pixels_per_unit(ppu: f32) {
-        assert_expr!(ppu > 0.0, "Pixels per unit for textures must be greater than 0!");
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        graphics.tex_ppu = ppu;
+        graphics.active_scope.set_pixels_per_unit(ppu);
     }
 
     /// Returns the active blending mode.
     pub fn blending_mode() -> BlendingMode {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        return graphics.blending;
+        return graphics.active_scope.blending_mode();
     }
 
     /// Sets the active blending mode.
     pub fn set_blending_mode(blending: BlendingMode) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        graphics.blending = blending;
+        graphics.active_scope.set_blending_mode(blending);
     }
 
     pub(crate) fn init() {
@@ -146,25 +93,12 @@ impl Graphics {
 
     pub(crate) fn begin_render(camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-
-        graphics.batch_data.setup_frame(camera, target_res);
-        graphics.render_started = true;
-        graphics.pipeline = Some(PipelinePtr(pipeline));
-        graphics.clear_col = clear_col;
+        graphics.active_scope.begin_render(camera, target_res, clear_col, pipeline);
     }
 
     pub(crate) fn end_render(real_window_res: uvec2) -> RenderStats { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        assert_main_thread!(graphics);
-        assert_expr!(graphics.render_started, "Window::post_tick must be called after Window::pre_tick!");
-
-        graphics.render_started = false;
-
-        let mut stats = RenderStats::new();
-        let render_pipeline = unsafe { graphics.pipeline.as_ref().unwrap().0.as_ref().unwrap() };
-        render_pipeline.render(&RenderTexture::to_screen(real_window_res), SceneData::new(&graphics.batch_data) , graphics.clear_col, &mut stats);
-        return stats;
+        return graphics.active_scope.end_render(real_window_res);
     }
 }
 
@@ -183,6 +117,4 @@ impl Default for CameraData {
 }
 
 
-struct PipelinePtr(pub *const dyn RenderPipeline);
-unsafe impl Sync for PipelinePtr {}
-unsafe impl Send for PipelinePtr {}
+
