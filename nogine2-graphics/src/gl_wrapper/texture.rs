@@ -75,6 +75,10 @@ impl GlTexture {
     pub fn id(&self) -> u32 {
         self.id
     }
+
+    pub fn dims(&self) -> uvec2 {
+        self.dims
+    }
 }
 
 impl PartialEq for GlTexture {

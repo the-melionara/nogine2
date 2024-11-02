@@ -4,9 +4,9 @@ use blending::BlendingMode;
 use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
 use scope::{RectSubmitCmd, RenderScope};
-use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
+use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, sprite::Sprite, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
-use crate::colors::rgba::RGBA32;
+use crate::colors::{rgba::RGBA32, Color};
 
 pub mod vertex;
 pub mod defaults;
@@ -49,6 +49,13 @@ impl Graphics {
 
         let extents = vec2::from(texture.dims()).scale(scale) / graphics.active_scope.pixels_per_unit();
         graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [tint; 4], texture: texture.handle(), uv_rect: Rect::IDENT });
+    }
+
+    pub fn draw_sprite(pos: vec2, rot: f32, scale: vec2, sprite: &Sprite) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+
+        let extents = vec2::from(sprite.dims()).scale(scale) / graphics.active_scope.pixels_per_unit();
+        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [RGBA32::WHITE; 4], texture: sprite.handle().clone(), uv_rect: sprite.uv_rect() });
     }
 
     /// Returns the current camera data.

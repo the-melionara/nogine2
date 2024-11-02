@@ -7,6 +7,7 @@ use crate::gl_wrapper::texture::{GlTexture, GlTextureFiltering, GlTextureWrappin
 
 pub mod pixels;
 pub mod rendertex;
+pub mod sprite;
 
 /// The handle of a texture. **Must only be used on the main thread!**
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +18,10 @@ pub struct TextureHandle {
 impl TextureHandle {
     pub(crate) fn bind_to(&self, target: u32) {
         self.gl_obj.bind_to(target);
+    }
+
+    pub(crate) fn dims(&self) -> uvec2 {
+        self.gl_obj.dims()
     }
 }
 
