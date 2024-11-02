@@ -10,6 +10,7 @@ pub struct RenderScope {
     batch_data: BatchData,
     tex_ppu: f32,
     blending: BlendingMode,
+    pivot: vec2,
 
     render_started: bool,
     clear_col: RGBA32,
@@ -22,6 +23,7 @@ impl RenderScope {
             batch_data: BatchData::new(),
             tex_ppu: 1.0,
             blending: BlendingMode::AlphaMix,
+            pivot: vec2::ZERO,
 
             render_started: false,
             clear_col: RGBA32::BLACK,
@@ -51,10 +53,10 @@ impl RenderScope {
         let tf_mat = mat3::tf_matrix(cmd.pos, cmd.rot, cmd.extents.scale(vec2(1.0, -1.0)));
 
         let verts = &[
-            BatchVertex { pos: (&tf_mat * vec3(0.0, 0.0, 1.0)).xy(), tint: cmd.tint[0], uv: cmd.uv_rect.lu(), tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(0.0, 1.0, 1.0)).xy(), tint: cmd.tint[1], uv: cmd.uv_rect.ld(), tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(1.0, 1.0, 1.0)).xy(), tint: cmd.tint[2], uv: cmd.uv_rect.rd(), tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3(1.0, 0.0, 1.0)).xy(), tint: cmd.tint[3], uv: cmd.uv_rect.ru(), tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[0], uv: cmd.uv_rect.lu(), tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[1], uv: cmd.uv_rect.ld(), tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[2], uv: cmd.uv_rect.rd(), tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[3], uv: cmd.uv_rect.ru(), tex_id: 0, user_data: 0 },
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
    
@@ -76,6 +78,16 @@ impl RenderScope {
     pub fn set_pixels_per_unit(&mut self, ppu: f32) {
         assert_expr!(ppu > 0.0, "Pixels per unit for textures must be greater than 0!");
         self.tex_ppu = ppu;
+    }
+
+    /// Returns the current pivot.
+    pub fn pivot(&self) -> vec2 {
+        return self.pivot;
+    }
+
+    /// Sets the current pivot.
+    pub fn set_pivot(&mut self, pivot: vec2) {
+        self.pivot = pivot;
     }
 
     /// Returns the active blending mode.

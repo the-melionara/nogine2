@@ -76,6 +76,18 @@ impl Graphics {
         graphics.active_scope.set_pixels_per_unit(ppu);
     }
 
+    /// Returns the current pivot.
+    pub fn pivot() -> vec2 {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.pivot();
+    }
+
+    /// Sets the current pivot.
+    pub fn set_pivot(pivot: vec2) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_pivot(pivot);
+    }
+
     /// Returns the active blending mode.
     pub fn blending_mode() -> BlendingMode {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
