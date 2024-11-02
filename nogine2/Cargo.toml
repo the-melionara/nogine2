@@ -14,3 +14,7 @@ image-loading = ["nogine2-graphics/image-loading"]
 [[example]]
 name = "drawing"
 required-features = ["image-loading"]
+
+[[example]]
+name = "tileset"
+required-features = ["image-loading"]
