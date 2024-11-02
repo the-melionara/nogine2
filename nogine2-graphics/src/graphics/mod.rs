@@ -4,7 +4,7 @@ use blending::BlendingMode;
 use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
 use scope::{RectSubmitCmd, RenderScope};
-use texture::{pixels::{PixelFormat, Pixels}, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
+use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
 use crate::colors::rgba::RGBA32;
 
@@ -98,7 +98,12 @@ impl Graphics {
 
     pub(crate) fn end_render(real_window_res: uvec2) -> RenderStats { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        return graphics.active_scope.end_render(real_window_res);
+        return graphics.active_scope.end_render(&RenderTexture::to_screen(real_window_res));
+    }
+
+    pub(crate) fn swap_scope(scope: &mut RenderScope) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        std::mem::swap(scope, &mut graphics.active_scope);
     }
 }
 

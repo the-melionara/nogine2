@@ -2,7 +2,9 @@ use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::ma
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, pipeline::{RenderPipeline, RenderStats}, texture::TextureHandle, CameraData};
+use super::{batch::BatchData, blending::BlendingMode, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, texture::TextureHandle, CameraData, Graphics};
+
+static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
 pub struct RenderScope {
     batch_data: BatchData,
@@ -25,6 +27,21 @@ impl RenderScope {
             clear_col: RGBA32::BLACK,
             pipeline: None,
         }
+    }
+
+    /// Makes this scope the target for all render commands.
+    pub fn run(&mut self, rt: &RenderTexture, setup: ScopeRenderSetup<'_>, f: impl FnOnce()) -> RenderStats {
+        let pipeline = if let Some(pipeline) = setup.pipeline {
+            unsafe { std::mem::transmute::<_, *const dyn RenderPipeline>(pipeline) } // Hack to stop misdiagnosis from rust (?)
+        } else {
+            &DEFAULT_PIPELINE as *const dyn RenderPipeline
+        };
+
+        self.begin_render(setup.camera, rt.dims(), setup.clear_col, pipeline);
+        Graphics::swap_scope(self);
+        f();
+        Graphics::swap_scope(self);
+        return self.end_render(rt);
     }
 
     pub(crate) fn draw_rect(&mut self, cmd: RectSubmitCmd) {
@@ -79,16 +96,25 @@ impl RenderScope {
         self.clear_col = clear_col;
     }
 
-    pub(crate) fn end_render(&mut self, real_window_res: uvec2) -> RenderStats { 
+    pub(crate) fn end_render(&mut self, rt: &RenderTexture) -> RenderStats { 
         assert_expr!(self.render_started, "Window::post_tick must be called after Window::pre_tick!");
         self.render_started = false;
 
         let mut stats = RenderStats::new();
         let render_pipeline = unsafe { self.pipeline.as_ref().unwrap().0.as_ref().unwrap() };
-        render_pipeline.render(&RenderTexture::to_screen(real_window_res), SceneData::new(&self.batch_data), self.clear_col, &mut stats);
+        render_pipeline.render(rt, SceneData::new(&self.batch_data), self.clear_col, &mut stats);
         return stats;
     }
 }
+
+
+/// Holds all the required information to render with a scope.
+pub struct ScopeRenderSetup<'a> {
+    pub camera: CameraData,
+    pub clear_col: RGBA32,
+    pub pipeline: Option<&'a dyn RenderPipeline>,
+}
+
 
 pub(crate) struct RectSubmitCmd {
     pub pos: vec2,
