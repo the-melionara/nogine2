@@ -2,7 +2,7 @@
 
 use std::simd::{cmp::SimdOrd, f32x4, f64x4, i32x4, num::*, u32x4, StdFloat};
 
-use gamedev_math::{cast_vec3_impl, float_vec3_impl, gen_vec3, scalar_vec3_impl, signed_vec3_impl, unsigned_vec3_impl};
+use gamedev_math::{cast_vec3_impl, float_vec3_impl, gen_vec3, scalar_vec3_impl, signed_vec3_impl, unsigned_vec3_impl, updim_vec3_impl};
 
 use super::vector2::{bvec2, dvec2, ivec2, uvec2, vec2};
 
@@ -33,3 +33,9 @@ cast_vec3_impl!(ivec3, i32, uvec3, vec3, dvec3);
 cast_vec3_impl!(uvec3, u32, ivec3, vec3, dvec3);
 cast_vec3_impl!(vec3, f32, uvec3, ivec3, dvec3);
 cast_vec3_impl!(dvec3, f64, uvec3, vec3, ivec3);
+
+updim_vec3_impl!(2, bvec3, bool, bvec2);
+updim_vec3_impl!(2, ivec3, i32, ivec2);
+updim_vec3_impl!(2, uvec3, u32, uvec2);
+updim_vec3_impl!(2, vec3, f32, vec2);
+updim_vec3_impl!(2, dvec3, f64, dvec2);
