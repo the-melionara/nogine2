@@ -1,3 +1,5 @@
+use nogine2_core::main_thread::test_main_thread;
+
 use super::{gl, gl_uint, texture::GlTexture};
 
 #[derive(Debug)]
@@ -11,6 +13,7 @@ impl GlFramebuffer {
     }
 
     pub fn new(color_att: &GlTexture) -> Self {
+        test_main_thread();
         unsafe {
             let mut id = 0;
             gl::GenFramebuffers(1, &mut id);
@@ -24,6 +27,7 @@ impl GlFramebuffer {
     }
 
     pub fn bind(&self) {
+        test_main_thread();
         unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, self.id) };
     }
 }
@@ -31,6 +35,7 @@ impl GlFramebuffer {
 impl Drop for GlFramebuffer {
     fn drop(&mut self) {
         if self.id != 0 {
+            test_main_thread();
             unsafe { gl::DeleteFramebuffers(1, &self.id) };
         }
     }
