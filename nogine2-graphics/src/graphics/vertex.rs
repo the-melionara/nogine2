@@ -23,3 +23,20 @@ impl BatchVertex {
         GlVertexAttribDefinition { id: 4, stride: size_of::<Self>(), offset: offset_of!(Self, user_data), typ: GlVertexAttribType::Int,   vec_len: 1 },
     ];
 }
+
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct BlitVertex {
+    pub pos: vec2,
+    pub tint: RGBA32,
+    pub uv: vec2,
+}
+
+impl BlitVertex {
+    pub(crate) const VERT_ATTRIB_DEFINITIONS: &'static [GlVertexAttribDefinition] = &[
+        GlVertexAttribDefinition { id: 0, stride: size_of::<Self>(), offset: offset_of!(Self, pos ), typ: GlVertexAttribType::Float, vec_len: 2 },
+        GlVertexAttribDefinition { id: 1, stride: size_of::<Self>(), offset: offset_of!(Self, tint), typ: GlVertexAttribType::Float, vec_len: 4 },
+        GlVertexAttribDefinition { id: 2, stride: size_of::<Self>(), offset: offset_of!(Self, uv  ), typ: GlVertexAttribType::Float, vec_len: 2 },
+    ];
+}

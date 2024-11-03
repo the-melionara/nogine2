@@ -52,6 +52,9 @@ impl RenderPipeline for DefaultPipeline {
 pub struct RenderStats {
     /// Holds all the information related to the batch renderer.
     pub batch: BatchRenderStats,   
+
+    /// Holds all the information related to blits.
+    pub blit: BlitRenderStats,
 }
 
 impl RenderStats {
@@ -64,7 +67,7 @@ impl RenderStats {
     }
 }
 
-
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct BatchRenderStats {
     /// Number of batch draw calls performed in the frame.
@@ -115,5 +118,18 @@ impl Add for BatchRenderStats {
             allocated_memory: self.allocated_memory + rhs.allocated_memory,
             on_use_memory: self.on_use_memory + rhs.on_use_memory,
         }
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub struct BlitRenderStats {
+    /// Number of blit draw calls
+    pub draw_calls: usize,
+}
+
+impl BlitRenderStats {
+    pub const fn new() -> Self {
+        Self { draw_calls: 0 }
     }
 }

@@ -69,6 +69,12 @@ pub fn gl_render_elements(indices_count: i32) {
     }
 }
 
+pub fn gl_render_array(verts_count: i32) {
+    unsafe {
+        gl::DrawArrays(gl::TRIANGLES, 0, verts_count);
+    }
+}
+
 pub fn gl_viewport(rect: IRect) {
     //test_main_thread(); // not needed
     assert_expr!(rect.start.0 < rect.end.0 && rect.start.1 < rect.end.1);
