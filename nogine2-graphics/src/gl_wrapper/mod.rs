@@ -61,17 +61,27 @@ pub fn gl_clear(col: RGBA32) {
     }
 }
 
-pub fn gl_render_elements(indices_count: i32) {
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy)]
+pub enum GlRenderMode {
+    GlTriangles = gl::TRIANGLES,
+    GlLines = gl::LINES,
+    GlPoints = gl::POINTS,
+}
+
+pub fn gl_render_elements(mode: GlRenderMode, indices_count: i32) {
     //test_main_thread(); // not needed
     assert_expr!(indices_count >= 0);
     unsafe {
-        gl::DrawElements(gl::TRIANGLES, indices_count, gl::UNSIGNED_SHORT, std::ptr::null());
+        gl::DrawElements(mode as u32, indices_count, gl::UNSIGNED_SHORT, std::ptr::null());
     }
 }
 
-pub fn gl_render_array(verts_count: i32) {
+pub fn gl_render_array(mode: GlRenderMode, verts_count: i32) {
+    assert_expr!(verts_count >= 0);
     unsafe {
-        gl::DrawArrays(gl::TRIANGLES, 0, verts_count);
+        gl::DrawArrays(mode as u32, 0, verts_count);
     }
 }
 

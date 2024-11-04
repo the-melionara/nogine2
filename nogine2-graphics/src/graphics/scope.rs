@@ -61,7 +61,7 @@ impl RenderScope {
         let indices = &[0, 1, 2, 2, 3, 0];
    
         let blending = self.blending;
-        self.batch_data.push(BatchPushCmd { verts, indices, texture: cmd.texture, blending });
+        self.batch_data.push(BatchPushCmd::Triangles { verts, indices, texture: cmd.texture, blending });
     }
 
     /// Returns the current camera data.

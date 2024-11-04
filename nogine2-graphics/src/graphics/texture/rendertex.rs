@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nogine2_core::{log_error, log_warn, main_thread::test_main_thread, math::{rect::IRect, vector2::{ivec2, uvec2, vec2}}};
 
-use crate::{colors::{rgba::RGBA32, Color}, gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, framebuffer::GlFramebuffer, gl_clear, gl_render_array, gl_uniform, gl_uniform_loc, gl_viewport, texture::{GlTexture, GlTextureFormat}, to_byte_slice, vao::GlVertexArray}, graphics::{defaults::DefaultShaders, pipeline::RenderStats, vertex::BlitVertex}};
+use crate::{colors::{rgba::RGBA32, Color}, gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, framebuffer::GlFramebuffer, gl_clear, gl_render_array, gl_uniform, gl_uniform_loc, gl_viewport, texture::{GlTexture, GlTextureFormat}, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{defaults::DefaultShaders, pipeline::RenderStats, vertex::BlitVertex}};
 
 use super::{pixels::PixelFormat, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
@@ -109,7 +109,7 @@ impl RenderTexture {
 
         src.bind_to(0);
 
-        gl_render_array(3);
+        gl_render_array(GlRenderMode::GlTriangles, 3);
         GlFramebuffer::to_screen().bind();
 
         stats.blit.draw_calls += 1;
