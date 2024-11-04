@@ -35,6 +35,14 @@ fn main() {
         Graphics::draw_rect(pos, 0.0, vec2(1.0, 2.0), RGBA32::RED);
         Graphics::set_blending_mode(BlendingMode::AlphaMix);
 
+        Graphics::draw_points(&[
+            (vec2(-2.0, 2.4), RGBA32::RED),
+            (vec2(-1.0, 2.4), RGBA32::YELLOW),
+            (vec2( 0.0, 2.4), RGBA32::GREEN),
+            (vec2( 1.0, 2.4), RGBA32::CYAN),
+            (vec2( 2.0, 2.4), RGBA32::BLUE),
+        ]);
+
         dbg!(window.post_tick());
     }
 }

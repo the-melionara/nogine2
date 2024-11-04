@@ -1,12 +1,14 @@
 use std::mem::size_of;
 
 use nogine2_core::{bytesize::ByteSize, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}}};
+use points::{PtsBatchBuffers, PtsBatchRenderCall};
 use triangles::{TriBatchBuffers, TriBatchRenderCall};
 
 
 use super::{blending::BlendingMode, pipeline::BatchRenderStats, texture::TextureHandle, vertex::BatchVertex, CameraData};
 
 mod triangles;
+mod points;
 
 pub struct BatchData {
     render_calls: Vec<BatchRenderCall>,
@@ -54,6 +56,26 @@ impl BatchData {
                     call.push(&mut verts, &mut indices, texture);
                 }
             },
+            BatchPushCmd::Points { verts, blending } => {
+                let bb = calculate_bounding_box(verts);
+                if !aabb_check(self.cam_rect, bb) {
+                    self.stats.skipped_submissions += 1;
+                    return;
+                }
+                self.stats.rendered_submissions += 1;
+ 
+                let mut verts = verts.iter().copied().map(|mut x| {
+                    x.pos = snap(x.pos, self.snapping);
+                    return x;
+                }).collect::<Vec<_>>();
+
+                self.stats.verts += verts.len();
+
+                let cursor = self.pts_render_call_cursor(verts.len(), blending);
+                if let BatchRenderCall::Points(call) = &mut self.render_calls[cursor] {
+                    call.push(&mut verts);
+                }
+            }
         }
     }
 
@@ -76,6 +98,7 @@ impl BatchData {
         while let Some(call) = self.render_calls.pop() {
             match call {
                 BatchRenderCall::Triangles(call) => self.pooled_buffers.push_tri_buffer(call.recycle()),
+                BatchRenderCall::Points(call) => self.pooled_buffers.push_pts_buffer(call.recycle()),
             }
         }
     }
@@ -88,7 +111,7 @@ impl BatchData {
             on_use_size += call.on_use_size();
         }
 
-        stats.allocated_memory = ByteSize::new((self.render_calls.len() + self.pooled_buffers.buffer_sizes()) as u64);
+        stats.allocated_memory = ByteSize::new((self.render_calls.iter().map(|x| x.alloc_size()).sum::<usize>() + self.pooled_buffers.buffer_sizes()) as u64);
         stats.on_use_memory = ByteSize::new(on_use_size as u64);
 
         *stats = stats.clone() + self.stats.clone();
@@ -112,6 +135,17 @@ impl BatchData {
         self.render_calls.push(BatchRenderCall::Triangles(TriBatchRenderCall::new(buffers, blending)));
         return self.render_calls.len() - 1;
     }
+
+    fn pts_render_call_cursor(&mut self, verts_len: usize, blending: BlendingMode) -> usize {
+        if let Some(BatchRenderCall::Points(last)) = self.render_calls.last() {
+            if last.allows(verts_len, blending) {
+                return self.render_calls.len() - 1;
+            }
+        }
+        let buffers = self.pooled_buffers.get_pts_buffer();
+        self.render_calls.push(BatchRenderCall::Points(PtsBatchRenderCall::new(buffers, blending)));
+        return self.render_calls.len() - 1;
+    }
 }
 
 
@@ -121,24 +155,38 @@ pub enum BatchPushCmd<'a> {
         indices: &'a [u16],
         texture: TextureHandle,
         blending: BlendingMode,
+    },
+    Points {
+        verts: &'a [BatchVertex],
+        blending: BlendingMode,
     }
 }
 
 
 enum BatchRenderCall {
     Triangles(TriBatchRenderCall),
+    Points(PtsBatchRenderCall),
 }
 
 impl BatchRenderCall {
     fn render(&self, view_mat: &mat3) {
         match self {
             BatchRenderCall::Triangles(call) => call.render(view_mat),
+            BatchRenderCall::Points(call) => call.render(view_mat),
         }
     }
 
     fn on_use_size(&self) -> usize {
         match self {
             BatchRenderCall::Triangles(call) => call.on_use_size(),
+            BatchRenderCall::Points(call) => call.on_use_size(),
+        }
+    }
+
+    fn alloc_size(&self) -> usize {
+        match self {
+            BatchRenderCall::Triangles(_) => TriBatchBuffers::BYTE_SIZE,
+            BatchRenderCall::Points(_) => PtsBatchBuffers::BYTE_SIZE,
         }
     }
 }
@@ -146,20 +194,23 @@ impl BatchRenderCall {
 
 struct BuffersPool {
     tri_buffers: Vec<TriBatchBuffers>,
+    pts_buffers: Vec<PtsBatchBuffers>,
 }
 
 impl BuffersPool {
     const fn new() -> Self {
-        Self { tri_buffers: Vec::new() }
+        Self { tri_buffers: Vec::new(), pts_buffers: Vec::new() }
     }
 
     fn clear(&mut self) {
         self.tri_buffers.clear();
+        self.pts_buffers.clear();
     }
 
     fn buffer_sizes(&self) -> usize {
         const TRI_BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * TriBatchBuffers::MAX_VERTS + size_of::<u16>() * TriBatchBuffers::MAX_INDICES;
-        return self.tri_buffers.len() * TRI_BATCH_BUFFER_SIZE;
+        const PTS_BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * PtsBatchBuffers::MAX_PTS;
+        return self.tri_buffers.len() * TRI_BATCH_BUFFER_SIZE + self.pts_buffers.len() * PTS_BATCH_BUFFER_SIZE;
     }
 
     fn get_tri_buffer(&mut self) -> TriBatchBuffers {
@@ -171,6 +222,17 @@ impl BuffersPool {
 
     fn push_tri_buffer(&mut self, buf: TriBatchBuffers) {
         self.tri_buffers.push(buf);
+    }
+
+    fn get_pts_buffer(&mut self) -> PtsBatchBuffers {
+        match self.pts_buffers.pop() {
+            Some(x) => x,
+            None => PtsBatchBuffers::new(),
+        }
+    }
+
+    fn push_pts_buffer(&mut self, buf: PtsBatchBuffers) {
+        self.pts_buffers.push(buf);
     }
 }
 

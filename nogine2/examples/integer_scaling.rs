@@ -26,6 +26,14 @@ fn main() {
         pos += vec2::from(Input::keyboard().axis2((Key::A, Key::S), (Key::D, Key::W))) * window.ts();
         Graphics::draw_rect(pos, 0.0, vec2::ONE, RGBA32::WHITE);
 
+        Graphics::draw_points(&[
+            (vec2(-2.0, 0.0), RGBA32::RED),
+            (vec2(-1.0, 0.0), RGBA32::YELLOW),
+            (vec2( 0.0, 0.0), RGBA32::GREEN),
+            (vec2( 1.0, 0.0), RGBA32::CYAN),
+            (vec2( 2.0, 0.0), RGBA32::BLUE),
+        ]);
+
         toggle_fullscreen(&mut window);
         window.post_tick();
     }

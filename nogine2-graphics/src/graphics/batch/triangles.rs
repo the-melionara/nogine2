@@ -86,6 +86,7 @@ impl TriBatchBuffers {
     const MAX_QUADS: usize = 256;
     pub const MAX_VERTS: usize = Self::MAX_QUADS * 4;
     pub const MAX_INDICES: usize = Self::MAX_QUADS * 6;
+    pub const BYTE_SIZE: usize = Self::MAX_VERTS * size_of::<BatchVertex>() + Self::MAX_INDICES * size_of::<u16>();
 
     pub fn new() -> Self {
         let mut item = Self {
