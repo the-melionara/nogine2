@@ -15,6 +15,7 @@ pub mod pipeline;
 pub mod texture;
 pub mod blending;
 pub mod scope;
+pub mod gfx;
 
 mod batch;
 

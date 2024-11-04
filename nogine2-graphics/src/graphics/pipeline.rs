@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use nogine2_core::{bytesize::ByteSize, main_thread::test_main_thread, math::{rect::IRect, vector2::ivec2}};
+use nogine2_core::{bytesize::ByteSize, log_error, main_thread::test_main_thread, math::{rect::IRect, vector2::ivec2}};
 
 use crate::{colors::rgba::RGBA32, gl_wrapper::{framebuffer::GlFramebuffer, gl_viewport}};
 
@@ -25,9 +25,13 @@ impl<'a> SceneData<'a> {
     /// Renders the scene data to a selected render texture.
     pub fn render_to(&self, rt: &RenderTexture, stats: &mut RenderStats) {
         test_main_thread();
+    
+        if rt.dims() != self.batch_data.target_res() {
+            log_error!("Couldn't render! RenderTexture must have the specified target resolution to be able to render a scene!");
+            return;
+        }
 
         rt.bind();
-
         gl_viewport(IRect { start: ivec2::ZERO, end: rt.dims().into() });
         self.batch_data.render(&mut stats.batch);
         GlFramebuffer::to_screen().bind();
@@ -59,7 +63,7 @@ pub struct RenderStats {
 
 impl RenderStats {
     pub const fn new() -> Self {
-        Self { batch: BatchRenderStats::new() }
+        Self { batch: BatchRenderStats::new(), blit: BlitRenderStats::new() }
     }
 
     pub fn total_draw_calls(&self) -> usize {

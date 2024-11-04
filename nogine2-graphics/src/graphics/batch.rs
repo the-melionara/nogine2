@@ -13,6 +13,7 @@ pub struct BatchData {
     view_mat: mat3,
     cam_rect: Rect,
     snapping: vec2,
+    target_res: uvec2,
     camera: CameraData,
 
     stats: BatchRenderStats,
@@ -22,7 +23,7 @@ impl BatchData {
     pub const fn new() -> Self {
         Self {
             render_calls: Vec::new(), pooled_buffers: Vec::new(),
-            view_mat: mat3::IDENTITY, cam_rect: Rect::IDENT, snapping: vec2::ONE, camera: CameraData { center: vec2::ZERO, extents: vec2::ZERO },
+            view_mat: mat3::IDENTITY, cam_rect: Rect::IDENT, snapping: vec2::ONE, camera: CameraData { center: vec2::ZERO, extents: vec2::ZERO }, target_res: uvec2::ZERO,
             stats: BatchRenderStats::new(),
         }
     }
@@ -57,6 +58,7 @@ impl BatchData {
         self.cam_rect = Rect { start: camera.center - camera.extents * 0.5, end: camera.center + camera.extents * 0.5 };
         self.camera = camera;
         self.stats = BatchRenderStats::new();
+        self.target_res = target_res;
 
         self.clear();
     }
@@ -85,6 +87,10 @@ impl BatchData {
 
     pub fn camera(&self) -> CameraData {
         self.camera.clone()
+    }
+
+    pub fn target_res(&self) -> uvec2 {
+        self.target_res
     }
 
     fn render_call_cursor(&mut self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode) -> usize {
