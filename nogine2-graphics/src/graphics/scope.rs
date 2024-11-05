@@ -76,6 +76,19 @@ impl RenderScope {
         self.batch_data.push(BatchPushCmd::Points { verts: &verts, blending });
     }
 
+    pub(crate) fn draw_lines(&mut self, cmd: LineSubmitCmd) {
+        test_main_thread();
+        assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
+
+        let verts = [
+            BatchVertex { pos: cmd.verts[0], tint: cmd.cols[0], uv: vec2::ZERO, tex_id: 0, user_data: 0 },
+            BatchVertex { pos: cmd.verts[1], tint: cmd.cols[1], uv: vec2::ZERO, tex_id: 0, user_data: 0 },
+        ];
+
+        let blending = self.blending;
+        self.batch_data.push(BatchPushCmd::Lines { verts, blending });
+    }
+
     /// Returns the current camera data.
     pub fn camera(&self) -> CameraData {
         return self.batch_data.camera();
@@ -151,6 +164,11 @@ pub(crate) struct RectSubmitCmd {
 
 pub(crate) struct PointsSubmitCmd<'a> {
     pub points: &'a [(vec2, RGBA32)],
+}
+
+pub(crate) struct LineSubmitCmd {
+    pub verts: [vec2; 2],
+    pub cols: [RGBA32; 2],
 }
 
 

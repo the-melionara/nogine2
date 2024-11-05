@@ -3,7 +3,7 @@ use std::{sync::RwLock, thread::ThreadId};
 use blending::BlendingMode;
 use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
-use scope::{PointsSubmitCmd, RectSubmitCmd, RenderScope};
+use scope::{LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope};
 use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, sprite::Sprite, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
 use crate::colors::{rgba::RGBA32, Color};
@@ -62,6 +62,11 @@ impl Graphics {
     pub fn draw_points(points: &[(vec2, RGBA32)]) { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         graphics.active_scope.draw_points(PointsSubmitCmd { points });
+    }
+
+    pub fn draw_line(from: vec2, to: vec2, colors: [RGBA32; 2]) { 
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.draw_lines(LineSubmitCmd { verts: [from, to], cols: colors });
     }
 
     /// Returns the current camera data.

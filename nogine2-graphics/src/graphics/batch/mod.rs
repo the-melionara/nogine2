@@ -1,5 +1,6 @@
 use std::mem::size_of;
 
+use lines::{LnsBatchBuffers, LnsBatchRenderCall};
 use nogine2_core::{bytesize::ByteSize, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}}};
 use points::{PtsBatchBuffers, PtsBatchRenderCall};
 use triangles::{TriBatchBuffers, TriBatchRenderCall};
@@ -9,6 +10,7 @@ use super::{blending::BlendingMode, pipeline::BatchRenderStats, texture::Texture
 
 mod triangles;
 mod points;
+mod lines;
 
 pub struct BatchData {
     render_calls: Vec<BatchRenderCall>,
@@ -75,7 +77,26 @@ impl BatchData {
                 if let BatchRenderCall::Points(call) = &mut self.render_calls[cursor] {
                     call.push(&mut verts);
                 }
-            }
+            },
+            BatchPushCmd::Lines { mut verts, blending } => {
+                let bb = calculate_bounding_box(&verts);
+                if !aabb_check(self.cam_rect, bb) {
+                    self.stats.skipped_submissions += 1;
+                    return;
+                }
+                self.stats.rendered_submissions += 1;
+
+                verts[0].pos = snap(verts[0].pos, self.snapping);
+                verts[1].pos = snap(verts[1].pos, self.snapping);
+
+                self.stats.verts += verts.len();
+                self.stats.triangles += 2;
+
+                let cursor = self.lns_render_call_cursor(verts.len(), 2, blending);
+                if let BatchRenderCall::Lines(call) = &mut self.render_calls[cursor] {
+                    call.push(verts);
+                }
+            },
         }
     }
 
@@ -99,6 +120,7 @@ impl BatchData {
             match call {
                 BatchRenderCall::Triangles(call) => self.pooled_buffers.push_tri_buffer(call.recycle()),
                 BatchRenderCall::Points(call) => self.pooled_buffers.push_pts_buffer(call.recycle()),
+                BatchRenderCall::Lines(call) => self.pooled_buffers.push_lns_buffer(call.recycle()),
             }
         }
     }
@@ -146,6 +168,17 @@ impl BatchData {
         self.render_calls.push(BatchRenderCall::Points(PtsBatchRenderCall::new(buffers, blending)));
         return self.render_calls.len() - 1;
     }
+
+    fn lns_render_call_cursor(&mut self, verts_len: usize, indices_len: usize, blending: BlendingMode) -> usize {
+        if let Some(BatchRenderCall::Lines(last)) = self.render_calls.last() {
+            if last.allows(verts_len, indices_len, blending) {
+                return self.render_calls.len() - 1;
+            }
+        }
+        let buffers = self.pooled_buffers.get_lns_buffer();
+        self.render_calls.push(BatchRenderCall::Lines(LnsBatchRenderCall::new(buffers, blending)));
+        return self.render_calls.len() - 1;
+    }
 }
 
 
@@ -159,6 +192,10 @@ pub enum BatchPushCmd<'a> {
     Points {
         verts: &'a [BatchVertex],
         blending: BlendingMode,
+    },
+    Lines {
+        verts: [BatchVertex; 2],
+        blending: BlendingMode,
     }
 }
 
@@ -166,6 +203,7 @@ pub enum BatchPushCmd<'a> {
 enum BatchRenderCall {
     Triangles(TriBatchRenderCall),
     Points(PtsBatchRenderCall),
+    Lines(LnsBatchRenderCall),
 }
 
 impl BatchRenderCall {
@@ -173,6 +211,7 @@ impl BatchRenderCall {
         match self {
             BatchRenderCall::Triangles(call) => call.render(view_mat),
             BatchRenderCall::Points(call) => call.render(view_mat),
+            BatchRenderCall::Lines(call) => call.render(view_mat),
         }
     }
 
@@ -180,6 +219,7 @@ impl BatchRenderCall {
         match self {
             BatchRenderCall::Triangles(call) => call.on_use_size(),
             BatchRenderCall::Points(call) => call.on_use_size(),
+            BatchRenderCall::Lines(call) => call.on_use_size(),
         }
     }
 
@@ -187,6 +227,7 @@ impl BatchRenderCall {
         match self {
             BatchRenderCall::Triangles(_) => TriBatchBuffers::BYTE_SIZE,
             BatchRenderCall::Points(_) => PtsBatchBuffers::BYTE_SIZE,
+            BatchRenderCall::Lines(_) => LnsBatchBuffers::BYTE_SIZE,
         }
     }
 }
@@ -195,22 +236,27 @@ impl BatchRenderCall {
 struct BuffersPool {
     tri_buffers: Vec<TriBatchBuffers>,
     pts_buffers: Vec<PtsBatchBuffers>,
+    lns_buffers: Vec<LnsBatchBuffers>,
 }
 
 impl BuffersPool {
     const fn new() -> Self {
-        Self { tri_buffers: Vec::new(), pts_buffers: Vec::new() }
+        Self { tri_buffers: Vec::new(), pts_buffers: Vec::new(), lns_buffers: Vec::new() }
     }
 
     fn clear(&mut self) {
         self.tri_buffers.clear();
         self.pts_buffers.clear();
+        self.lns_buffers.clear();
     }
 
     fn buffer_sizes(&self) -> usize {
         const TRI_BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * TriBatchBuffers::MAX_VERTS + size_of::<u16>() * TriBatchBuffers::MAX_INDICES;
         const PTS_BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * PtsBatchBuffers::MAX_PTS;
-        return self.tri_buffers.len() * TRI_BATCH_BUFFER_SIZE + self.pts_buffers.len() * PTS_BATCH_BUFFER_SIZE;
+        const LNS_BATCH_BUFFER_SIZE: usize = size_of::<BatchVertex>() * LnsBatchBuffers::MAX_VERTS + size_of::<u16>() * LnsBatchBuffers::MAX_INDICES;
+        return self.tri_buffers.len() * TRI_BATCH_BUFFER_SIZE +
+            self.pts_buffers.len() * PTS_BATCH_BUFFER_SIZE +
+            self.lns_buffers.len() * LNS_BATCH_BUFFER_SIZE;
     }
 
     fn get_tri_buffer(&mut self) -> TriBatchBuffers {
@@ -233,6 +279,17 @@ impl BuffersPool {
 
     fn push_pts_buffer(&mut self, buf: PtsBatchBuffers) {
         self.pts_buffers.push(buf);
+    }
+
+    fn get_lns_buffer(&mut self) -> LnsBatchBuffers {
+        match self.lns_buffers.pop() {
+            Some(x) => x,
+            None => LnsBatchBuffers::new(),
+        }
+    }
+
+    fn push_lns_buffer(&mut self, buf: LnsBatchBuffers) {
+        self.lns_buffers.push(buf);
     }
 }
 
