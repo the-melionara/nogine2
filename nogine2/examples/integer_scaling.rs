@@ -34,6 +34,13 @@ fn main() {
             (vec2( 2.0, 0.0), RGBA32::BLUE),
         ]);
 
+        Graphics::draw_line(vec2(-3.0, 1.0), vec2(-2.0, 2.0), [RGBA32::RED, RGBA32::ORANGE]);
+        Graphics::draw_line(vec2(-2.0, 2.0), vec2(-1.0, 1.0), [RGBA32::ORANGE, RGBA32::YELLOW]);
+        Graphics::draw_line(vec2(-1.0, 1.0), vec2(0.0, 2.0), [RGBA32::YELLOW, RGBA32::LIME]);
+        Graphics::draw_line(vec2(0.0, 2.0), vec2(1.0, 1.0), [RGBA32::LIME, RGBA32::GREEN]);
+        Graphics::draw_line(vec2(1.0, 1.0), vec2(2.0, 2.0), [RGBA32::GREEN, RGBA32::AZURE]);
+        Graphics::draw_line(vec2(2.0, 2.0), vec2(3.0, 1.0), [RGBA32::AZURE, RGBA32::BLUE]);
+
         toggle_fullscreen(&mut window);
         window.post_tick();
     }
