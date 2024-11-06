@@ -11,6 +11,7 @@ pub struct RenderScope {
     tex_ppu: f32,
     blending: BlendingMode,
     pivot: vec2,
+    user_data: i32,
 
     render_started: bool,
     clear_col: RGBA32,
@@ -24,6 +25,7 @@ impl RenderScope {
             tex_ppu: 1.0,
             blending: BlendingMode::AlphaMix,
             pivot: vec2::ZERO,
+            user_data: 0,
 
             render_started: false,
             clear_col: RGBA32::BLACK,
@@ -52,11 +54,12 @@ impl RenderScope {
 
         let tf_mat = mat3::tf_matrix(cmd.pos, cmd.rot, cmd.extents.scale(vec2(1.0, -1.0)));
 
+        let user_data = self.user_data;
         let verts = &[
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[0], uv: cmd.uv_rect.lu(), tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[1], uv: cmd.uv_rect.ld(), tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[2], uv: cmd.uv_rect.rd(), tex_id: 0, user_data: 0 },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[3], uv: cmd.uv_rect.ru(), tex_id: 0, user_data: 0 },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[0], uv: cmd.uv_rect.lu(), tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[1], uv: cmd.uv_rect.ld(), tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[2], uv: cmd.uv_rect.rd(), tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[3], uv: cmd.uv_rect.ru(), tex_id: 0, user_data },
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
    
@@ -69,7 +72,7 @@ impl RenderScope {
         assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
 
         let verts = cmd.points.iter().map(|(pos, col)|
-            BatchVertex { pos: *pos, tint: *col, uv: vec2::ZERO, tex_id: 0, user_data: 0 }
+            BatchVertex { pos: *pos, tint: *col, uv: vec2::ZERO, tex_id: 0, user_data: self.user_data }
         ).collect::<Vec<_>>();
 
         let blending = self.blending;
@@ -80,9 +83,10 @@ impl RenderScope {
         test_main_thread();
         assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
 
+        let user_data = self.user_data;
         let verts = [
-            BatchVertex { pos: cmd.verts[0], tint: cmd.cols[0], uv: vec2::ZERO, tex_id: 0, user_data: 0 },
-            BatchVertex { pos: cmd.verts[1], tint: cmd.cols[1], uv: vec2::ZERO, tex_id: 0, user_data: 0 },
+            BatchVertex { pos: cmd.verts[0], tint: cmd.cols[0], uv: vec2::ZERO, tex_id: 0, user_data },
+            BatchVertex { pos: cmd.verts[1], tint: cmd.cols[1], uv: vec2::ZERO, tex_id: 0, user_data },
         ];
 
         let blending = self.blending;
@@ -103,6 +107,16 @@ impl RenderScope {
     pub fn set_pixels_per_unit(&mut self, ppu: f32) {
         assert_expr!(ppu > 0.0, "Pixels per unit for textures must be greater than 0!");
         self.tex_ppu = ppu;
+    }
+
+    /// Returns the user data.
+    pub fn user_data(&self) -> i32 {
+        return self.user_data;
+    }
+
+    /// Sets user data.
+    pub fn set_user_data(&mut self, user_data: i32) {
+        self.user_data = user_data;
     }
 
     /// Returns the current pivot.

@@ -87,6 +87,18 @@ impl Graphics {
         graphics.active_scope.set_pixels_per_unit(ppu);
     }
 
+    /// Returns the user data.
+    pub fn user_data() -> i32 {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.user_data();
+    }
+
+    /// Sets user data.
+    pub fn set_user_data(user_data: i32) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_user_data(user_data);
+    }
+
     /// Returns the current pivot.
     pub fn pivot() -> vec2 {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
