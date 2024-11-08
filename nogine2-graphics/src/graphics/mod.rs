@@ -1,6 +1,7 @@
-use std::{sync::RwLock, thread::ThreadId};
+use std::{sync::{Arc, RwLock}, thread::ThreadId};
 
 use blending::BlendingMode;
+use material::Material;
 use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
 use scope::{LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope};
@@ -16,6 +17,7 @@ pub mod texture;
 pub mod blending;
 pub mod scope;
 pub mod gfx;
+pub mod material;
 
 mod batch;
 
@@ -122,6 +124,25 @@ impl Graphics {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         graphics.active_scope.set_blending_mode(blending);
     }
+
+    /// Sets the active material.
+    pub fn set_material(material: Arc<Material>) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_material(material);
+    }
+
+    /// Resets the active material.
+    pub fn reset_material() {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.reset_material();
+    }
+
+    /// Returns the active material.
+    pub fn material() -> Arc<Material> {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.material();
+    }
+
 
     pub(crate) fn init() {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };

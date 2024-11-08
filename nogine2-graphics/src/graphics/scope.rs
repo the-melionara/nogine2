@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, texture::TextureHandle, CameraData, Graphics};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, texture::TextureHandle, CameraData, Graphics};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -12,6 +14,7 @@ pub struct RenderScope {
     blending: BlendingMode,
     pivot: vec2,
     user_data: i32,
+    material: Option<Arc<Material>>,
 
     render_started: bool,
     clear_col: RGBA32,
@@ -26,6 +29,7 @@ impl RenderScope {
             blending: BlendingMode::AlphaMix,
             pivot: vec2::ZERO,
             user_data: 0,
+            material: None,
 
             render_started: false,
             clear_col: RGBA32::BLACK,
@@ -64,7 +68,8 @@ impl RenderScope {
         let indices = &[0, 1, 2, 2, 3, 0];
    
         let blending = self.blending;
-        self.batch_data.push(BatchPushCmd::Triangles { verts, indices, texture: cmd.texture, blending });
+        let material = self.material();
+        self.batch_data.push(BatchPushCmd::Triangles { verts, indices, texture: cmd.texture, blending, material });
     }
 
     pub(crate) fn draw_points(&mut self, cmd: PointsSubmitCmd<'_>) {
@@ -76,7 +81,8 @@ impl RenderScope {
         ).collect::<Vec<_>>();
 
         let blending = self.blending;
-        self.batch_data.push(BatchPushCmd::Points { verts: &verts, blending });
+        let material = self.material();
+        self.batch_data.push(BatchPushCmd::Points { verts: &verts, blending, material });
     }
 
     pub(crate) fn draw_lines(&mut self, cmd: LineSubmitCmd) {
@@ -90,7 +96,8 @@ impl RenderScope {
         ];
 
         let blending = self.blending;
-        self.batch_data.push(BatchPushCmd::Lines { verts, blending });
+        let material = self.material();
+        self.batch_data.push(BatchPushCmd::Lines { verts, blending, material });
     }
 
     /// Returns the current camera data.
@@ -137,6 +144,21 @@ impl RenderScope {
     /// Sets the active blending mode.
     pub fn set_blending_mode(&mut self, blending: BlendingMode) {
         self.blending = blending;
+    }
+
+    /// Sets the active material.
+    pub fn set_material(&mut self, material: Arc<Material>) {
+        self.material = Some(material);
+    }
+
+    /// Resets the active material.
+    pub fn reset_material(&mut self) {
+        self.material = Some(DefaultMaterials::batch()); // This instead of None because it would be dumb not to!!
+    }
+
+    /// Returns the active material.
+    pub fn material(&self) -> Arc<Material> {
+        self.material.clone().unwrap_or(DefaultMaterials::batch())
     }
 
 
