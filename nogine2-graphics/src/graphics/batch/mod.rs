@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::{mem::size_of, sync::Arc};
 
 use lines::{LnsBatchBuffers, LnsBatchRenderCall};
 use nogine2_core::{bytesize::ByteSize, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}}};
@@ -6,7 +6,7 @@ use points::{PtsBatchBuffers, PtsBatchRenderCall};
 use triangles::{TriBatchBuffers, TriBatchRenderCall};
 
 
-use super::{blending::BlendingMode, pipeline::BatchRenderStats, texture::TextureHandle, vertex::BatchVertex, CameraData};
+use super::{blending::BlendingMode, material::Material, pipeline::BatchRenderStats, texture::TextureHandle, vertex::BatchVertex, CameraData};
 
 mod triangles;
 mod points;
@@ -36,7 +36,7 @@ impl BatchData {
 
     pub fn push(&mut self, cmd: BatchPushCmd<'_>) {
         match cmd {
-            BatchPushCmd::Triangles { verts, indices, texture, blending } => {
+            BatchPushCmd::Triangles { verts, indices, texture, blending, material } => {
                 let bb = calculate_bounding_box(verts);
                 if !aabb_check(self.cam_rect, bb) {
                     self.stats.skipped_submissions += 1;
@@ -53,12 +53,12 @@ impl BatchData {
                 self.stats.verts += verts.len();
                 self.stats.triangles += indices.len() / 3;
 
-                let cursor = self.tri_render_call_cursor(verts.len(), indices.len(), &texture, blending);
+                let cursor = self.tri_render_call_cursor(verts.len(), indices.len(), &texture, blending, material);
                 if let BatchRenderCall::Triangles(call) = &mut self.render_calls[cursor] {
                     call.push(&mut verts, &mut indices, texture);
                 }
             },
-            BatchPushCmd::Points { verts, blending } => {
+            BatchPushCmd::Points { verts, blending, material } => {
                 let bb = calculate_bounding_box(verts);
                 if !aabb_check(self.cam_rect, bb) {
                     self.stats.skipped_submissions += 1;
@@ -73,12 +73,12 @@ impl BatchData {
 
                 self.stats.verts += verts.len();
 
-                let cursor = self.pts_render_call_cursor(verts.len(), blending);
+                let cursor = self.pts_render_call_cursor(verts.len(), blending, material);
                 if let BatchRenderCall::Points(call) = &mut self.render_calls[cursor] {
                     call.push(&mut verts);
                 }
             },
-            BatchPushCmd::Lines { mut verts, blending } => {
+            BatchPushCmd::Lines { mut verts, blending, material } => {
                 let bb = calculate_bounding_box(&verts);
                 if !aabb_check(self.cam_rect, bb) {
                     self.stats.skipped_submissions += 1;
@@ -92,7 +92,7 @@ impl BatchData {
                 self.stats.verts += verts.len();
                 self.stats.triangles += 2;
 
-                let cursor = self.lns_render_call_cursor(verts.len(), 2, blending);
+                let cursor = self.lns_render_call_cursor(verts.len(), 2, blending, material);
                 if let BatchRenderCall::Lines(call) = &mut self.render_calls[cursor] {
                     call.push(verts);
                 }
@@ -147,36 +147,36 @@ impl BatchData {
         self.target_res
     }
 
-    fn tri_render_call_cursor(&mut self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode) -> usize {
+    fn tri_render_call_cursor(&mut self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode, material: Arc<Material>) -> usize {
         if let Some(BatchRenderCall::Triangles(last)) = self.render_calls.last() {
-            if last.allows(verts_len, indices_len, texture, blending) {
+            if last.allows(verts_len, indices_len, texture, blending, &material) {
                 return self.render_calls.len() - 1;
             }
         }
         let buffers = self.pooled_buffers.get_tri_buffer();
-        self.render_calls.push(BatchRenderCall::Triangles(TriBatchRenderCall::new(buffers, blending)));
+        self.render_calls.push(BatchRenderCall::Triangles(TriBatchRenderCall::new(buffers, blending, material)));
         return self.render_calls.len() - 1;
     }
 
-    fn pts_render_call_cursor(&mut self, verts_len: usize, blending: BlendingMode) -> usize {
+    fn pts_render_call_cursor(&mut self, verts_len: usize, blending: BlendingMode, material: Arc<Material>) -> usize {
         if let Some(BatchRenderCall::Points(last)) = self.render_calls.last() {
-            if last.allows(verts_len, blending) {
+            if last.allows(verts_len, blending, &material) {
                 return self.render_calls.len() - 1;
             }
         }
         let buffers = self.pooled_buffers.get_pts_buffer();
-        self.render_calls.push(BatchRenderCall::Points(PtsBatchRenderCall::new(buffers, blending)));
+        self.render_calls.push(BatchRenderCall::Points(PtsBatchRenderCall::new(buffers, blending, material)));
         return self.render_calls.len() - 1;
     }
 
-    fn lns_render_call_cursor(&mut self, verts_len: usize, indices_len: usize, blending: BlendingMode) -> usize {
+    fn lns_render_call_cursor(&mut self, verts_len: usize, indices_len: usize, blending: BlendingMode, material: Arc<Material>) -> usize {
         if let Some(BatchRenderCall::Lines(last)) = self.render_calls.last() {
-            if last.allows(verts_len, indices_len, blending) {
+            if last.allows(verts_len, indices_len, blending, &material) {
                 return self.render_calls.len() - 1;
             }
         }
         let buffers = self.pooled_buffers.get_lns_buffer();
-        self.render_calls.push(BatchRenderCall::Lines(LnsBatchRenderCall::new(buffers, blending)));
+        self.render_calls.push(BatchRenderCall::Lines(LnsBatchRenderCall::new(buffers, blending, material)));
         return self.render_calls.len() - 1;
     }
 }
@@ -188,14 +188,17 @@ pub enum BatchPushCmd<'a> {
         indices: &'a [u16],
         texture: TextureHandle,
         blending: BlendingMode,
+        material: Arc<Material>,
     },
     Points {
         verts: &'a [BatchVertex],
         blending: BlendingMode,
+        material: Arc<Material>,
     },
     Lines {
         verts: [BatchVertex; 2],
         blending: BlendingMode,
+        material: Arc<Material>,
     }
 }
 

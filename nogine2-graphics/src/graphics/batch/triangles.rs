@@ -1,26 +1,28 @@
+use std::sync::Arc;
+
 use nogine2_core::{log_error, math::mat3x3::mat3};
 
-use crate::{gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, gl_uniform_loc, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{blending::BlendingMode, defaults::DefaultShaders, texture::TextureHandle, vertex::BatchVertex}};
+use crate::{gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{blending::BlendingMode, material::Material, texture::TextureHandle, vertex::BatchVertex}};
 
 pub struct TriBatchRenderCall {
     buffers: TriBatchBuffers,
     textures: Vec<TextureHandle>,
     blending: BlendingMode,
+    material: Arc<Material>,
 }
 
 impl TriBatchRenderCall {
     const MAX_TEXTURES: usize = 16;
     const TEXTURES: [i32; Self::MAX_TEXTURES] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     
-    pub fn new(buffers: TriBatchBuffers, blending: BlendingMode) -> Self {
-        Self { buffers, textures: Vec::new(), blending }
+    pub fn new(buffers: TriBatchBuffers, blending: BlendingMode, material: Arc<Material>) -> Self {
+        Self { buffers, textures: Vec::new(), blending, material }
     }
 
     pub fn render(&self, view_mat: &mat3) {
         let indices_len = self.buffers.bind_all();
 
-        let shader = DefaultShaders::batch();
-        if !shader.use_shader() {
+        if !self.material.use_material() {
             log_error!("GL_ERROR: Couldn't render!");
             return;
         }
@@ -29,11 +31,11 @@ impl TriBatchRenderCall {
             t.bind_to(i as u32);
         }
     
-        if let Some(view_mat_loc) = gl_uniform_loc(shader.gl_obj(), b"uViewMat\0") {
+        if let Some(view_mat_loc) = self.material.uniform_loc(b"uViewMat\0") {
             gl_uniform::set_mat3(view_mat_loc, view_mat);
         }
 
-        if let Some(textures_loc) = gl_uniform_loc(shader.gl_obj(), b"uTextures\0") {
+        if let Some(textures_loc) = self.material.uniform_loc(b"uTextures\0") {
             gl_uniform::set_i32_arr(textures_loc, &Self::TEXTURES);
         }
 
@@ -48,8 +50,12 @@ impl TriBatchRenderCall {
         self.buffers
     }
 
-    pub fn allows(&self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode) -> bool {
-        self.buffers.fits(verts_len, indices_len) && (self.textures.len() < Self::MAX_TEXTURES || self.textures.contains(texture)) && self.blending == blending
+    pub fn allows(&self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode, material: &Arc<Material>) -> bool {
+        self.buffers.fits(verts_len, indices_len) &&
+            (self.textures.len() < Self::MAX_TEXTURES || self.textures.contains(texture)) &&
+            self.blending == blending &&
+            *self.material == **material
+
     }
 
     pub fn push(&mut self, verts: &mut [BatchVertex], indices: &mut [u16], texture: TextureHandle) {

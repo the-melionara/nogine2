@@ -1,27 +1,29 @@
+use std::sync::Arc;
+
 use nogine2_core::{log_error, math::{mat3x3::mat3, vector2::vec2}};
 
-use crate::{gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, gl_uniform_loc, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{blending::BlendingMode, defaults::DefaultShaders, vertex::BatchVertex}};
+use crate::{gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{blending::BlendingMode, material::Material, vertex::BatchVertex}};
 
 pub struct LnsBatchRenderCall {
     buffers: LnsBatchBuffers,
     blending: BlendingMode,
+    material: Arc<Material>,
 }
 
 impl LnsBatchRenderCall {
-    pub fn new(buffers: LnsBatchBuffers, blending: BlendingMode) -> Self {
-        Self { buffers, blending }
+    pub fn new(buffers: LnsBatchBuffers, blending: BlendingMode, material: Arc<Material>) -> Self {
+        Self { buffers, blending, material }
     }
 
     pub fn render(&self, view_mat: &mat3) {
         let indices_len = self.buffers.bind_all();
 
-        let shader = DefaultShaders::batch();
-        if !shader.use_shader() {
+        if !self.material.use_material() {
             log_error!("GL_ERROR: Couldn't render!");
             return;
         }
     
-        if let Some(view_mat_loc) = gl_uniform_loc(shader.gl_obj(), b"uViewMat\0") {
+        if let Some(view_mat_loc) = self.material.uniform_loc(b"uViewMat\0") {
             gl_uniform::set_mat3(view_mat_loc, view_mat);
         }
 
@@ -36,8 +38,8 @@ impl LnsBatchRenderCall {
         self.buffers
     }
 
-    pub fn allows(&self, verts_len: usize, indices_len: usize, blending: BlendingMode) -> bool {
-        self.buffers.fits(verts_len, indices_len) && self.blending == blending
+    pub fn allows(&self, verts_len: usize, indices_len: usize, blending: BlendingMode, material: &Arc<Material>) -> bool {
+        self.buffers.fits(verts_len, indices_len) && self.blending == blending && *self.material == **material
     }
 
     pub fn push(&mut self, mut verts: [BatchVertex; 2]) {
