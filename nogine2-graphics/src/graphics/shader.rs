@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use nogine2_core::assert_expr;
+use nogine2_core::{assert_expr, main_thread::test_main_thread};
 
-use crate::gl_wrapper::{program::GlProgram, shader::{GlShader, GlShaderType}};
+use crate::gl_wrapper::{gl_uniform_loc, program::GlProgram, shader::{GlShader, GlShaderType}};
 
 #[repr(u32)]
 #[non_exhaustive]
@@ -67,5 +67,11 @@ impl Shader {
 
     pub(crate) fn gl_obj(&self) -> &GlProgram {
         &self.gl_obj
+    }
+
+    pub(crate) fn uniform_loc(&self, name: &[u8]) -> Option<i32> {
+        test_main_thread();
+        assert_expr!(name.last().copied() == Some(b'\0'), "Uniform names must be 0 terminated!");
+        return gl_uniform_loc(&self.gl_obj, name);
     }
 }
