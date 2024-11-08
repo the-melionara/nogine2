@@ -107,18 +107,35 @@ pub fn gl_uniform_loc(program: &GlProgram, name: &[u8]) -> Option<i32> {
 }
 
 pub mod gl_uniform {
-    use nogine2_core::math::mat3x3::mat3;
+    use nogine2_core::math::{mat3x3::mat3, vector2::{ivec2, uvec2, vec2}, vector3::{ivec3, uvec3, vec3}, vector4::{ivec4, uvec4, vec4}};
 
     use super::gl;
 
+    pub fn set_i32(loc: i32, val: i32) { unsafe { gl::Uniform1i(loc, val) } }
+    pub fn set_ivec2(loc: i32, val: ivec2) { unsafe { gl::Uniform2i(loc, val.0, val.1) } }
+    pub fn set_ivec3(loc: i32, val: ivec3) { unsafe { gl::Uniform3i(loc, val.0, val.1, val.2) } }
+    pub fn set_ivec4(loc: i32, val: ivec4) { unsafe { gl::Uniform4i(loc, val.0, val.1, val.2, val.3) } }
+
+    pub fn set_u32(loc: i32, val: u32) { unsafe { gl::Uniform1ui(loc, val) } }
+    pub fn set_uvec2(loc: i32, val: uvec2) { unsafe { gl::Uniform2ui(loc, val.0, val.1) } }
+    pub fn set_uvec3(loc: i32, val: uvec3) { unsafe { gl::Uniform3ui(loc, val.0, val.1, val.2) } }
+    pub fn set_uvec4(loc: i32, val: uvec4) { unsafe { gl::Uniform4ui(loc, val.0, val.1, val.2, val.3) } }
+
+    pub fn set_f32(loc: i32, val: f32) { unsafe { gl::Uniform1f(loc, val) } }
+    pub fn set_vec2(loc: i32, val: vec2) { unsafe { gl::Uniform2f(loc, val.0, val.1) } }
+    pub fn set_vec3(loc: i32, val: vec3) { unsafe { gl::Uniform3f(loc, val.0, val.1, val.2) } }
+    pub fn set_vec4(loc: i32, val: vec4) { unsafe { gl::Uniform4f(loc, val.0, val.1, val.2, val.3) } }
+
     pub fn set_mat3(loc: i32, mat: &mat3) {
-        //test_main_thread(); // not needed
         unsafe { gl::UniformMatrix3fv(loc, 1, gl::TRUE, mat.ptr()) };
     }
 
     pub fn set_i32_arr(loc: i32, arr: &[i32]) {
-        //test_main_thread(); // not needed
         unsafe { gl::Uniform1iv(loc, arr.len() as i32, arr.as_ptr()) };
+    }
+
+    pub fn uniforms_failed() -> bool {
+        return unsafe { gl::GetError() == gl::INVALID_OPERATION };
     }
 }
 
