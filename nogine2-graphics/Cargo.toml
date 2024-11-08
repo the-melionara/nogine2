@@ -7,6 +7,7 @@ build = "build.rs"
 [dependencies]
 nogine2-core = { path = "../nogine2-core" }
 image = { version = "0.25.4", optional = true }
+uuid = { version = "1.11.0", features = ["v4"] }
 
 [build-dependencies]
 gl_generator = "0.14.0"
