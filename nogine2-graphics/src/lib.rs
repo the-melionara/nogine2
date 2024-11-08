@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use colors::rgba::RGBA32;
 use gl_wrapper::{gl_enable_blend, gl_load};
-use graphics::{defaults::{DefaultShaders, DefaultSubShaders}, pipeline::{RenderPipeline, RenderStats}, CameraData, Graphics};
+use graphics::{defaults::{DefaultMaterials, DefaultShaders, DefaultSubShaders}, pipeline::{RenderPipeline, RenderStats}, CameraData, Graphics};
 use nogine2_core::{log_info, math::vector2::uvec2};
 
 pub mod graphics;
@@ -16,6 +16,7 @@ pub fn init_graphics(load_fn: impl Fn(&str) -> *const c_void) -> bool {
 
     if !DefaultSubShaders::init() { return false };
     if !DefaultShaders::init() { return false };
+    if !DefaultMaterials::init() { return false };
     Graphics::init();
 
     log_info!("NOGINE2: Graphics initialized");

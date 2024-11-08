@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use nogine2_core::crash;
 
-use super::shader::{Shader, SubShader, SubShaderType};
+use super::{material::Material, shader::{Shader, SubShader, SubShaderType}};
 
 const BATCH_VERT_SRC: &[u8] = include_bytes!("../../shaders/batch.vert");
 const BATCH_FRAG_SRC: &[u8] = include_bytes!("../../shaders/batch.frag");
@@ -13,6 +13,7 @@ const BLIT_FRAG_SRC: &[u8] = include_bytes!("../../shaders/blit.frag");
 
 static DEF_SUBSHADERS: RwLock<Option<DefaultSubShaders>> = RwLock::new(None);
 static DEF_SHADERS: RwLock<Option<DefaultShaders>> = RwLock::new(None);
+static DEF_MATERIALS: RwLock<Option<DefaultMaterials>> = RwLock::new(None);
 
 /// Singleton containing all the default subshaders.
 pub struct DefaultSubShaders {
@@ -97,5 +98,40 @@ impl DefaultShaders {
         let Ok(shaders) = DEF_SHADERS.read() else { crash!("Couldn't access DefaultShaders singleton!") };
         let Some(shaders) = shaders.as_ref() else { crash!("DefaultShaders is not initialized!") };
         shaders.blit.clone()
+    }
+}
+
+
+/// Singleton containing all the default materials.
+pub struct DefaultMaterials {
+    batch: Arc<Material>,
+    blit: Arc<Material>,
+}
+
+impl DefaultMaterials {
+    pub(crate) fn init() -> bool {
+        let Ok(shaders) = DEF_SHADERS.read() else { crash!("Couldn't access DefaultShaders singleton!") };
+        let Some(shaders) = shaders.as_ref() else { crash!("DefaultShaders is not initialized!") };
+
+        let batch = Material::new(shaders.batch.clone());
+        let blit = Material::new(shaders.blit.clone());
+
+        let Ok(mut materials) = DEF_MATERIALS.write() else { crash!("Couldn't access DefaultMaterials singleton!") };
+        *materials = Some(DefaultMaterials { batch, blit });
+        return true;
+    }
+
+    /// Default shader for rendering batch meshes.
+    pub fn batch() -> Arc<Material> {
+        let Ok(materials) = DEF_MATERIALS.read() else { crash!("Couldn't access DefaultMaterials singleton!") };
+        let Some(materials) = materials.as_ref() else { crash!("DefaultMaterials is not initialized!") };
+        materials.batch.clone()
+    }
+
+    /// Default shader for blit operations.
+    pub fn blit() -> Arc<Material> {
+        let Ok(materials) = DEF_MATERIALS.read() else { crash!("Couldn't access DefaultMaterials singleton!") };
+        let Some(materials) = materials.as_ref() else { crash!("DefaultMaterials is not initialized!") };
+        materials.blit.clone()
     }
 }
