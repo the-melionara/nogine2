@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nogine2_core::{log_error, log_warn, main_thread::test_main_thread, math::{rect::IRect, vector2::{ivec2, uvec2, vec2}}};
 
-use crate::{colors::{rgba::RGBA32, Color}, gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, framebuffer::GlFramebuffer, gl_clear, gl_render_array, gl_uniform, gl_uniform_loc, gl_viewport, texture::{GlTexture, GlTextureFormat}, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{defaults::DefaultShaders, pipeline::RenderStats, vertex::BlitVertex}};
+use crate::{colors::{rgba::RGBA32, Color}, gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, framebuffer::GlFramebuffer, gl_clear, gl_render_array, gl_uniform, gl_viewport, texture::{GlTexture, GlTextureFormat}, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{defaults::DefaultMaterials, material::Material, pipeline::RenderStats, vertex::BlitVertex}};
 
 use super::{pixels::PixelFormat, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
@@ -75,10 +75,18 @@ impl RenderTexture {
     }
 
     pub fn combine(&self, src: &Self, stats: &mut RenderStats) {
-        self.combine_ext(src, IRect { start: ivec2::ZERO, end: ivec2::from(src.dims) }, stats);
+        self.combine_with_material_ext(src, IRect { start: ivec2::ZERO, end: ivec2::from(src.dims) }, DefaultMaterials::blit(), stats);
     }
 
     pub fn combine_ext(&self, src: &Self, target_rect: IRect, stats: &mut RenderStats) {
+        self.combine_with_material_ext(src, target_rect, DefaultMaterials::blit(), stats);
+    }
+
+    pub fn combine_with_material(&self, src: &Self, material: Arc<Material>, stats: &mut RenderStats) {
+        self.combine_with_material_ext(src, IRect { start: ivec2::ZERO, end: ivec2::from(src.dims) }, material, stats);
+    }
+
+    pub fn combine_with_material_ext(&self, src: &Self, target_rect: IRect, material: Arc<Material>, stats: &mut RenderStats) {
         test_main_thread();
 
         self.bind();
@@ -92,13 +100,12 @@ impl RenderTexture {
         let mut vao = GlVertexArray::new();
         vao.bind_vbo(&vbo, BlitVertex::VERT_ATTRIB_DEFINITIONS);
 
-        let shader = DefaultShaders::blit();
-        if !shader.use_shader() {
+        if !material.use_material() {
             log_error!("GL_ERROR: Couldn't render!");
             return;
         }
 
-        if let Some(textures_loc) = gl_uniform_loc(shader.gl_obj(), b"uTextures\0") {
+        if let Some(textures_loc) = material.uniform_loc(b"uTextures\0") {
             gl_uniform::set_i32_arr(textures_loc, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
         }
 
