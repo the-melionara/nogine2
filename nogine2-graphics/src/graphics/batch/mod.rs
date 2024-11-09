@@ -34,13 +34,15 @@ impl BatchData {
         }
     }
 
-    pub fn push(&mut self, cmd: BatchPushCmd<'_>) {
+    pub fn push(&mut self, cmd: BatchPushCmd<'_>, culling_enabled: bool) {
         match cmd {
             BatchPushCmd::Triangles { verts, indices, texture, blending, material } => {
-                let bb = calculate_bounding_box(verts);
-                if !aabb_check(self.cam_rect, bb) {
-                    self.stats.skipped_submissions += 1;
-                    return;
+                if culling_enabled {
+                    let bb = calculate_bounding_box(verts);
+                    if !aabb_check(self.cam_rect, bb) {
+                        self.stats.skipped_submissions += 1;
+                        return;
+                    }
                 }
                 self.stats.rendered_submissions += 1;
 
@@ -59,10 +61,12 @@ impl BatchData {
                 }
             },
             BatchPushCmd::Points { verts, blending, material } => {
-                let bb = calculate_bounding_box(verts);
-                if !aabb_check(self.cam_rect, bb) {
-                    self.stats.skipped_submissions += 1;
-                    return;
+                if culling_enabled {
+                    let bb = calculate_bounding_box(verts);
+                    if !aabb_check(self.cam_rect, bb) {
+                        self.stats.skipped_submissions += 1;
+                        return;
+                    }
                 }
                 self.stats.rendered_submissions += 1;
  
@@ -79,10 +83,12 @@ impl BatchData {
                 }
             },
             BatchPushCmd::Lines { mut verts, blending, material } => {
-                let bb = calculate_bounding_box(&verts);
-                if !aabb_check(self.cam_rect, bb) {
-                    self.stats.skipped_submissions += 1;
-                    return;
+                if culling_enabled {
+                    let bb = calculate_bounding_box(&verts);
+                    if !aabb_check(self.cam_rect, bb) {
+                        self.stats.skipped_submissions += 1;
+                        return;
+                    }
                 }
                 self.stats.rendered_submissions += 1;
 

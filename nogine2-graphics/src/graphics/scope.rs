@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use bitflags::bitflags;
 use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
@@ -16,6 +17,8 @@ pub struct RenderScope {
     user_data: i32,
     material: Option<Arc<Material>>,
 
+    cfg_flags: RenderScopeCfgFlags,
+
     render_started: bool,
     clear_col: RGBA32,
     pipeline: Option<PipelinePtr>,
@@ -30,6 +33,8 @@ impl RenderScope {
             pivot: vec2::ZERO,
             user_data: 0,
             material: None,
+
+            cfg_flags: RenderScopeCfgFlags::DEFAULT,
 
             render_started: false,
             clear_col: RGBA32::BLACK,
@@ -69,7 +74,8 @@ impl RenderScope {
    
         let blending = self.blending;
         let material = self.material();
-        self.batch_data.push(BatchPushCmd::Triangles { verts, indices, texture: cmd.texture, blending, material });
+        let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
+        self.batch_data.push(BatchPushCmd::Triangles { verts, indices, texture: cmd.texture, blending, material }, culling_enabled);
     }
 
     pub(crate) fn draw_points(&mut self, cmd: PointsSubmitCmd<'_>) {
@@ -82,7 +88,8 @@ impl RenderScope {
 
         let blending = self.blending;
         let material = self.material();
-        self.batch_data.push(BatchPushCmd::Points { verts: &verts, blending, material });
+        let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
+        self.batch_data.push(BatchPushCmd::Points { verts: &verts, blending, material }, culling_enabled);
     }
 
     pub(crate) fn draw_lines(&mut self, cmd: LineSubmitCmd) {
@@ -97,7 +104,8 @@ impl RenderScope {
 
         let blending = self.blending;
         let material = self.material();
-        self.batch_data.push(BatchPushCmd::Lines { verts, blending, material });
+        let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
+        self.batch_data.push(BatchPushCmd::Lines { verts, blending, material }, culling_enabled);
     }
 
     /// Returns the current camera data.
@@ -161,6 +169,26 @@ impl RenderScope {
         self.material.clone().unwrap_or(DefaultMaterials::batch())
     }
 
+    /// Returns the current configuration.
+    pub fn cfg(&self) -> RenderScopeCfgFlags {
+        self.cfg_flags
+    }
+
+    /// Enables the configurations in `flags`.
+    pub fn enable_cfg(&mut self, flags: RenderScopeCfgFlags) {
+        self.cfg_flags |= flags;
+    }
+
+    /// Disables the configurations in `flags`.
+    pub fn disable_cfg(&mut self, flags: RenderScopeCfgFlags) {
+        self.cfg_flags &= !flags;
+    }
+
+    /// Sets the configuration.
+    pub fn set_cfg(&mut self, flags: RenderScopeCfgFlags) {
+        self.cfg_flags = flags;
+    }
+    
 
     pub(crate) fn begin_render(&mut self, camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
         self.batch_data.setup_frame(camera, target_res);
@@ -177,6 +205,25 @@ impl RenderScope {
         let render_pipeline = unsafe { self.pipeline.as_ref().unwrap().0.as_ref().unwrap() };
         render_pipeline.render(rt, SceneData::new(&self.batch_data), self.clear_col, &mut stats);
         return stats;
+    }
+}
+
+
+bitflags! {
+    /// Bitflags for render scope configuration.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct RenderScopeCfgFlags : u8 {
+        /// Culls render submits outside of the camera's bounds. Enabled by default.
+        const CULLING = 1;
+
+        /// Default configuration.
+        const DEFAULT = Self::CULLING.bits();
+    }
+}
+
+impl Default for RenderScopeCfgFlags {
+    fn default() -> Self {
+        Self::DEFAULT
     }
 }
 

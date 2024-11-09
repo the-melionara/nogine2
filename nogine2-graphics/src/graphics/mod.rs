@@ -4,7 +4,7 @@ use blending::BlendingMode;
 use material::Material;
 use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
-use scope::{LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope};
+use scope::{LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope, RenderScopeCfgFlags};
 use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, sprite::Sprite, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 
 use crate::colors::{rgba::RGBA32, Color};
@@ -141,6 +141,30 @@ impl Graphics {
     pub fn material() -> Arc<Material> {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
         return graphics.active_scope.material();
+    }
+
+    /// Returns the current configuration.
+    pub fn cfg() -> RenderScopeCfgFlags {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.cfg();
+    }
+
+    /// Enables the configurations in `flags`.
+    pub fn enable_cfg(flags: RenderScopeCfgFlags) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.enable_cfg(flags);
+    }
+
+    /// Disables the configurations in `flags`.
+    pub fn disable_cfg(flags: RenderScopeCfgFlags) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.disable_cfg(flags);
+    }
+
+    /// Sets the configuration.
+    pub fn set_cfg(flags: RenderScopeCfgFlags) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_cfg(flags);
     }
 
 
