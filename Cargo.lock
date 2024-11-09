@@ -507,6 +507,7 @@ dependencies = [
 name = "nogine2-graphics"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.6.0",
  "gl_generator",
  "image",
  "nogine2-core",
