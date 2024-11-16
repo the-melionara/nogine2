@@ -2,6 +2,7 @@
 name = "nogine2-window"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 nogine2-core = { path = "../nogine2-core" }
