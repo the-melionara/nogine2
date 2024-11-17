@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 gamedev-math = { git = "https://github.com/JustMel69/gamedev-math.git" }
+native-dialog = "0.7.0"
