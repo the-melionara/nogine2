@@ -1,14 +1,16 @@
 use std::sync::RwLock;
 
 use bitflags::bitflags;
+use controller::{Controller, ControllerMappings};
 use keyboard::Keyboard;
 use mouse::Mouse;
-use nogine2_core::{log_error, math::vector2::vec2};
+use nogine2_core::{assert_expr, log_error, math::vector2::vec2};
 
-use crate::glfw::{GLFWaction, GLFWkey, GLFWmousebutton};
+use crate::glfw::{self, glfwJoystickPresent, GLFWaction, GLFWbool, GLFWkey, GLFWmousebutton, GLFW_CLIENT_API};
 
 pub mod keyboard;
 pub mod mouse;
+pub mod controller;
 
 /* All button states follow the following scheme:
  * 0b00: Not pressed
@@ -36,11 +38,12 @@ static INPUT: RwLock<Input> = RwLock::new(Input::new());
 pub struct Input {
     keyboard: Keyboard,
     mouse: Mouse,
+    controller: Option<Controller>, // Only one, for now
 }
 
 impl Input {
     const fn new() -> Self {
-        Self { keyboard: Keyboard::new(), mouse: Mouse::new() }
+        Self { keyboard: Keyboard::new(), mouse: Mouse::new(), controller: None }
     }
 
     /// Returns a snapshot of the keyboard.
@@ -61,6 +64,18 @@ impl Input {
             Err(_) => {
                 log_error!("Couldn't access input singleton!");
                 Mouse::new()
+            }
+        }
+    }
+
+    /// Returns a snapshot of a controller.
+    pub fn controller(id: u8) -> Option<Controller> {
+        assert_expr!(id == 0, "Multiple controllers are not supported yet!");
+        match INPUT.write() {
+            Ok(x) => x.controller.clone(),
+            Err(_) => {
+                log_error!("Couldn't access input singleton!");
+                None
             }
         }
     }
@@ -99,5 +114,20 @@ impl Input {
         let Ok(mut input) = INPUT.write() else { log_error!("Couldn't access input singleton!"); return };
         input.keyboard.flush();
         input.mouse.flush();
+
+        // Update states of controllers
+        if let Some(ctrl) = &mut input.controller {
+            ctrl.update(0);
+
+            if unsafe { glfwJoystickPresent(0) == GLFWbool::FALSE } {
+                input.controller = None;
+            }
+        } else {
+            if unsafe { glfwJoystickPresent(0) == GLFWbool::TRUE } {
+                if let Some(map) = ControllerMappings::new(0) {
+                    input.controller = Some(Controller::new(map));
+                }
+            }
+        }
     }
 }

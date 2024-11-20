@@ -13,7 +13,7 @@ fn main() {
         "android" => "platform:Android,",
         _ => {
             println!("cargo::warning=SDL_GameControllerDB is not compatible with the target OS!");
-            write!(&mut writer, "&[]").unwrap();
+            write!(&mut writer, "static CONTROLLER_DB: &[(&str, CtrlDbEntry)] = &[];").unwrap();
             return;
         }
     };
@@ -22,7 +22,7 @@ fn main() {
 }
 
 fn parse_db(platform: &str, mut writer: BufWriter<File>) -> std::io::Result<()> {
-    write!(writer, "&[")?;
+    write!(writer, "static CONTROLLER_DB: &[(&str, CtrlDbEntry)] = &[")?;
 
     for line in SDL_CONTROLLER_DB.lines().filter(|x| !x.is_empty() && !x.starts_with('#')).map(|x| x.trim()) {
         if !line.ends_with(platform) {
@@ -36,7 +36,7 @@ fn parse_db(platform: &str, mut writer: BufWriter<File>) -> std::io::Result<()> 
         parse_ctrls(split, &mut writer)?;
         write!(writer, "]}}),")?;
     }
-    write!(writer, "]")?;
+    write!(writer, "];")?;
     return Ok(());
 }
 
@@ -49,10 +49,6 @@ fn parse_ctrls<'a>(split: impl Iterator<Item = &'a str>, writer: &'a mut BufWrit
         }
         
         let value = params.next().unwrap();
-        if value.contains('~') {
-            continue; // idk what the fuck this is
-        }
-        
         if value.starts_with("b") {
             parse_button_ctrl(key, &value[1..], writer)?;
         } else if value.starts_with("h") {
@@ -65,7 +61,11 @@ fn parse_ctrls<'a>(split: impl Iterator<Item = &'a str>, writer: &'a mut BufWrit
 }
 
 fn parse_axis_ctrl(key: &str, value: &str, writer: &mut BufWriter<File>) -> std::io::Result<()> {
-    write!(writer, "(\"{key}\",CtrlDbBinding::Axis({value})),")
+    if value.ends_with('~') { 
+        write!(writer, "(\"{key}\",CtrlDbBinding::Axis({}, -1.0)),", value.trim_end_matches('~'))
+    } else {
+        write!(writer, "(\"{key}\",CtrlDbBinding::Axis({value}, 1.0)),")
+    }
 }
 
 fn parse_hat_ctrl(key: &str, value: &str, writer: &mut BufWriter<File>) -> std::io::Result<()> {

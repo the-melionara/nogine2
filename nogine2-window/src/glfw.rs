@@ -1,7 +1,9 @@
 #![allow(non_camel_case_types)]
 #![allow(unused)]
 
-use std::ffi::{c_char, c_double, c_int, c_void};
+use std::ffi::{c_char, c_double, c_float, c_int, c_uchar, c_void};
+
+use bitflags::bitflags;
 
 #[allow(dead_code)]
 #[repr(i32)]
@@ -195,6 +197,18 @@ pub type GLFWscrollfun = extern "C" fn(window: *mut GLFWwindow, xoffset: c_doubl
 pub type GLFWmousebuttonfun = extern "C" fn(window: *mut GLFWwindow, button: GLFWmousebutton, action: GLFWaction, mods: c_int);
 pub type GLFWframebuffersizefun = extern "C" fn(window: *mut GLFWwindow, width: c_int, height: c_int);
 
+bitflags! {
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct GLFWhat : u8 {
+        const CENTERED = 0;
+        const UP = 1;
+        const RIGHT = 2;
+        const DOWN = 4;
+        const LEFT = 8;
+    }
+}
+
 #[link(name = "glfw3")]
 extern "C" {
     pub fn glfwInit() -> GLFWbool;
@@ -264,6 +278,21 @@ extern "C" {
     pub fn glfwSetWindowMonitor(window: *mut GLFWwindow, monitor: *mut GLFWmonitor, xpos: c_int, ypos: c_int, width: c_int, height: c_int, refreshRate: c_int);
 
     pub fn glfwGetProcAddress(procname: *const c_char) -> *const c_void;
+
+    /// \[main thread only]
+    pub fn glfwJoystickPresent(jid: c_int) -> GLFWbool;
+
+    /// \[main thread only]
+    pub fn glfwGetJoystickAxes(jid: c_int, count: *mut c_int) -> *const c_float;
+
+    /// \[main thread only]
+    pub fn glfwGetJoystickButtons(jid: c_int, count: *mut c_int) -> *const c_uchar;
+
+    /// \[main thread only]
+    pub fn glfwGetJoystickHats(jid: c_int, count: *mut c_int) -> *const GLFWhat;
+
+    /// \[main thread only]
+    pub fn glfwGetJoystickGUID(jid: c_int) -> *const c_char;
 }
 
 // TODO: Actually do good links here
