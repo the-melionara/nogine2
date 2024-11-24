@@ -6,7 +6,7 @@ use keyboard::Keyboard;
 use mouse::Mouse;
 use nogine2_core::{assert_expr, log_error, math::vector2::vec2};
 
-use crate::glfw::{self, glfwJoystickPresent, GLFWaction, GLFWbool, GLFWkey, GLFWmousebutton, GLFW_CLIENT_API};
+use crate::glfw::{glfwJoystickPresent, GLFWaction, GLFWbool, GLFWkey, GLFWmousebutton};
 
 pub mod keyboard;
 pub mod mouse;

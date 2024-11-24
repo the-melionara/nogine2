@@ -65,10 +65,6 @@ impl Shader {
         self.gl_obj.use_program()
     }
 
-    pub(crate) fn gl_obj(&self) -> &GlProgram {
-        &self.gl_obj
-    }
-
     pub(crate) fn uniform_loc(&self, name: &[u8]) -> Option<i32> {
         test_main_thread();
         assert_expr!(name.last().copied() == Some(b'\0'), "Uniform names must be 0 terminated!");
