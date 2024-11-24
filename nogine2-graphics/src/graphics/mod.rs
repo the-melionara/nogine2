@@ -48,17 +48,18 @@ impl Graphics {
     }
 
     pub fn draw_texture(pos: vec2, rot: f32, scale: vec2, tint: RGBA32, texture: &Texture2D) {
-        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-
-        let extents = vec2::from(texture.dims()).scale(scale) / graphics.active_scope.pixels_per_unit();
-        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [tint; 4], texture: texture.handle(), uv_rect: Rect::IDENT });
+        return Self::draw_texture_adv(pos, rot, scale, [tint; 4], texture.handle(), Rect::IDENT);
     }
 
     pub fn draw_sprite(pos: vec2, rot: f32, scale: vec2, sprite: &Sprite) {
+        return Self::draw_texture_adv(pos, rot, scale, [RGBA32::WHITE; 4], sprite.handle().clone(), sprite.uv_rect());
+    }
+
+    pub fn draw_texture_adv(pos: vec2, rot: f32, scale: vec2, tint: [RGBA32; 4], texture: TextureHandle, uv_rect: Rect) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
 
-        let extents = vec2::from(sprite.dims()).scale(scale) / graphics.active_scope.pixels_per_unit();
-        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [RGBA32::WHITE; 4], texture: sprite.handle().clone(), uv_rect: sprite.uv_rect() });
+        let extents = vec2::from(texture.dims()).scale(scale).scale(uv_rect.size()) / graphics.active_scope.pixels_per_unit();
+        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint, texture, uv_rect });
     }
 
     pub fn draw_points(points: &[(vec2, RGBA32)]) { 
