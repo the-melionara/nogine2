@@ -57,11 +57,11 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub(crate) fn handle(&self) -> &TextureHandle {
+    pub fn handle(&self) -> &TextureHandle {
         &self.handle
     }
 
-    pub(crate) fn uv_rect(&self) -> Rect {
+    pub fn uv_rect(&self) -> Rect {
         self.uv_rect
     }
 
