@@ -41,8 +41,14 @@ impl SpriteAtlas {
 
         let cell_count = self.tex.dims().inv_scale(self.cell_size);
         let uv_rect = Rect {
-            start: vec2::from(rect.start).inv_scale(vec2::from(cell_count)),
-            end: vec2::from(rect.end).inv_scale(vec2::from(cell_count)),
+            start: (vec2::from(rect.start)
+                .inv_scale(vec2::from(cell_count))
+                .scale(vec2::from(self.tex.dims())) + vec2::one(0.1))
+                .inv_scale(vec2::from(self.tex.dims())),
+            end: (vec2::from(rect.end)
+                .inv_scale(vec2::from(cell_count))
+                .scale(vec2::from(self.tex.dims())) + vec2::one(0.1))
+                .inv_scale(vec2::from(self.tex.dims())),
         };
         return Sprite { handle: self.tex.handle(), uv_rect };
     }
