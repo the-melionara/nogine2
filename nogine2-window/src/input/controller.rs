@@ -98,11 +98,11 @@ impl Controller {
     pub(super) fn update(&mut self, jid: u32) {
         self.left_stick = vec2(
             self.mapping.left_x.check_as_axis(jid),
-            self.mapping.left_y.check_as_axis(jid),
+            -self.mapping.left_y.check_as_axis(jid),
         );
         self.right_stick = vec2(
             self.mapping.right_x.check_as_axis(jid),
-            self.mapping.right_y.check_as_axis(jid),
+            -self.mapping.right_y.check_as_axis(jid),
         );
         
         self.set_button_state(RawControllerButton::ACross, self.mapping.a.check_as_button(jid));
