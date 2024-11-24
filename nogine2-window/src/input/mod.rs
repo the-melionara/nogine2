@@ -117,6 +117,7 @@ impl Input {
 
         // Update states of controllers
         if let Some(ctrl) = &mut input.controller {
+            ctrl.flush();
             ctrl.update(0);
 
             if unsafe { glfwJoystickPresent(0) == GLFWbool::FALSE } {

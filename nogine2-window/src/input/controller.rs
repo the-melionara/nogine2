@@ -1,4 +1,4 @@
-use std::{clone::CloneToUninit, f32, marker::UnsizedConstParamTy, sync::Arc};
+use std::{f32, sync::Arc};
 
 use nogine2_core::math::{vector2::{ivec2, vec2}, vector3::ivec3};
 
@@ -22,6 +22,10 @@ pub struct Controller {
 impl Controller {
     pub(super) fn new(mapping: Arc<ControllerMappings>) -> Self {
         Self { mapping, states: 0, left_stick: vec2::ZERO, right_stick: vec2::ZERO }
+    }
+
+    pub fn mappings(&self) -> &ControllerMappings {
+        &self.mapping
     }
 
     /// Returns if `button` is being pressed.
@@ -142,7 +146,7 @@ struct CtrlDbEntry {
     ctrls: &'static [(&'static str, CtrlDbBinding)]
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum CtrlDbBinding { Missing, Button(u8), Hat(u8, u8), Axis(u8, f32) }
 
 impl CtrlDbBinding {
@@ -159,10 +163,10 @@ impl CtrlDbBinding {
             CtrlDbBinding::Hat(0, hat) => unsafe {
                 let mut count = 0;
                 let ptr = glfwGetJoystickHats(jid as i32, &mut count);
-                if ptr.is_null() || count != 0 {
+                if ptr.is_null() || count == 0 {
                     return false;
                 }
-                return ptr.read().contains(GLFWhat::from_bits_retain(*hat));
+                return !(ptr.read() & GLFWhat::from_bits_retain(*hat)).is_empty();
             },
             CtrlDbBinding::Axis(axis, _) => unsafe {
                 let mut count = 0;
@@ -304,6 +308,7 @@ impl ControllerModel {
 
 
 /// Holds all the mappings of a controller.
+#[derive(Debug)]
 pub struct ControllerMappings {
     model: ControllerModel,
     layout: ControllerLayout,
@@ -369,6 +374,11 @@ impl ControllerMappings {
                     "back" => res.select = *bind,
                     _ => {},
                 }
+            }
+
+            if res.layout == ControllerLayout::Nintendo {
+                std::mem::swap(&mut res.a, &mut res.b);
+                std::mem::swap(&mut res.x, &mut res.y);
             }
 
             return Some(Arc::new(res));
