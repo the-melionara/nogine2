@@ -1,11 +1,16 @@
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::integer_scaling_blit, pipeline::{RenderPipeline, RenderStats, SceneData}, texture::{rendertex::RenderTexture, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, Graphics}, input::{keyboard::Key, Input}, math::vector2::{uvec2, vec2}, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::integer_scaling_blit, pipeline::{RenderPipeline, RenderStats, SceneData}, texture::{rendertex::RenderTexture, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, Input}, math::vector2::{uvec2, vec2}, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 struct CustomPipeline;
 impl RenderPipeline for CustomPipeline {
-    fn render(&self, target_rt: &RenderTexture, scene_data: SceneData<'_>, clear_col: RGBA32, stats: &mut RenderStats) {
+    fn render(&self, target_rt: &RenderTexture, scene_data: Option<SceneData<'_>>, ui_data: Option<SceneData<'_>>, clear_col: RGBA32, stats: &mut RenderStats) {
         let downscale_rt = RenderTexture::new(uvec2(320, 180), TextureSampling { filtering: TextureFiltering::Nearest, wrapping: TextureWrapping::Clamp });
         downscale_rt.clear(clear_col);
-        scene_data.render_to(&downscale_rt, stats);
+        if let Some(scene_data) = scene_data {
+            scene_data.render_to(&downscale_rt, stats);
+        }
+        if let Some(ui_data) = ui_data {
+            ui_data.render_to(&downscale_rt, stats);
+        }
 
         target_rt.clear(RGBA32::BLACK);
         integer_scaling_blit(&downscale_rt, target_rt, stats);
@@ -21,7 +26,13 @@ fn main() {
     let mut pos = vec2::ZERO;
     let pipeline = CustomPipeline;
     while window.is_open() {
-        window.pre_tick(CameraData { center: vec2::ZERO, extents: vec2(16.0, 9.0) }, uvec2(320, 180), RGBA32(0.1, 0.2, 0.3, 1.0), Some(&pipeline));
+        window.pre_tick(FrameSetup {
+            camera: CameraData { center: vec2::ZERO, extents: vec2(16.0, 9.0) },
+            target_res: uvec2(320, 180),
+            clear_col: RGBA32(0.1, 0.2, 0.3, 1.0),
+            pipeline: Some(&pipeline),
+            ..Default::default()
+        });
 
         pos += vec2::from(Input::keyboard().axis2((Key::A, Key::S), (Key::D, Key::W))) * window.ts();
         Graphics::draw_rect(pos, 0.0, vec2::ONE, RGBA32::WHITE);

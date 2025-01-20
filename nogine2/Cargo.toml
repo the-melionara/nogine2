@@ -18,3 +18,7 @@ required-features = ["image-loading"]
 [[example]]
 name = "tileset"
 required-features = ["image-loading"]
+
+[[example]]
+name = "ui"
+required-features = ["image-loading"]

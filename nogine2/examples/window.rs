@@ -1,4 +1,4 @@
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::CameraData, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{graphics::FrameSetup, math::vector2::uvec2, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -7,7 +7,7 @@ fn main() {
     window.set_vsync(true);
 
     while window.is_open() {
-        window.pre_tick(CameraData::default(), window.res(), RGBA32::BLACK, None);
+        window.pre_tick(FrameSetup { target_res: window.fb_size(), ..Default::default() });
 
         window.post_tick();
     }

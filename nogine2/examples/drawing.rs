@@ -1,4 +1,4 @@
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{blending::BlendingMode, texture::{Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, Graphics}, input::{keyboard::Key, Input}, math::vector2::{uvec2, vec2}, prelude::init_nogine2, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{blending::BlendingMode, texture::{Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, Input}, math::vector2::{uvec2, vec2}, prelude::init_nogine2, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -13,7 +13,10 @@ fn main() {
     let mut pos = vec2::ZERO;
     while window.is_open() {
         center += vec2::from(Input::keyboard().axis2((Key::A, Key::S), (Key::D, Key::W))) * window.ts();
-        window.pre_tick(CameraData { center, extents: vec2(window.aspect_ratio(), 1.0) * 5.0 }, window.res(), RGBA32::BLACK, None);
+        window.pre_tick(FrameSetup {
+            camera: CameraData { center, extents: vec2(window.aspect_ratio(), 1.0) * 5.0 },
+            target_res: window.res(), ..Default::default()
+        });
 
         Graphics::draw_rect(vec2(-1.0, -1.0), 0.0, vec2::one(2.0), RGBA32::WHITE);
 
