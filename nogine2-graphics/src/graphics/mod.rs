@@ -1,11 +1,12 @@
-use std::{sync::{Arc, RwLock}, thread::ThreadId};
+use std::sync::{Arc, RwLock};
 
 use blending::BlendingMode;
 use material::Material;
-use nogine2_core::{crash, math::{rect::Rect, vector2::{uvec2, vec2}}};
+use nogine2_core::{crash, lazy::LazyCloner, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
-use scope::{LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope, RenderScopeCfgFlags};
+use scope::{ui::UIScope, LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope, RenderScopeCfgFlags};
 use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, sprite::Sprite, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
+use ui::area::UIArea;
 
 use crate::colors::{rgba::RGBA32, Color};
 
@@ -18,33 +19,55 @@ pub mod blending;
 pub mod scope;
 pub mod gfx;
 pub mod material;
+pub mod ui;
 
 mod batch;
+
+pub(crate) static WHITE_TEX: LazyCloner<TextureHandle> = LazyCloner::new(|| Texture2D::new(
+    Pixels::new(vec![255, 255, 255, 255], uvec2(1, 1), PixelFormat::RGBA8),
+    TextureSampling { filtering: TextureFiltering::Nearest, wrapping: TextureWrapping::Clamp },
+).handle());
 
 static GRAPHICS: RwLock<Graphics> = RwLock::new(Graphics::new());
 
 pub struct Graphics {
     active_scope: RenderScope,
-    white_texture: Option<TextureHandle>,
-
-    thread: Option<ThreadId>,
+    ui_scope: UIScope,
+    ui_enabled: bool,
 }
 
 impl Graphics {
     const fn new() -> Self {
         Self {
             active_scope: RenderScope::new(),
-            white_texture: None,
-
-            thread: None,
+            ui_scope: UIScope::new(),
+            ui_enabled: false,
         }
+    }
+
+    /// Runs UI commands. Will panic if UI is not enabled.
+    pub fn ui<'a, R>(f: impl FnOnce(UIArea<'a>) -> R) -> R {
+        match Self::try_ui(f) {
+            Some(res) => res,
+            None => crash!("UI is not enabled!"),
+        }
+    }
+
+    /// Runs UI commands. Will return `None` if UI is not enabled.
+    pub fn try_ui<'a, R>(f: impl FnOnce(UIArea<'a>) -> R) -> Option<R> {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        if !graphics.ui_enabled {
+            return None;
+        }
+        
+        let hacky_ref = unsafe { (&mut graphics.ui_scope as *mut UIScope).as_mut().unwrap_unchecked() }; // there will be trials for my crimes
+        return Some(UIScope::run_internal(hacky_ref, f));
     }
 
     pub fn draw_rect(pos: vec2, rot: f32, extents: vec2, color: RGBA32) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
 
-        let white_texture = graphics.white_texture.clone().unwrap();
-        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [color; 4], texture: white_texture, uv_rect: Rect::IDENT });
+        graphics.active_scope.draw_rect(RectSubmitCmd { pos, rot, extents, tint: [color; 4], texture: WHITE_TEX.get(), uv_rect: Rect::IDENT });
     }
 
     pub fn draw_texture(pos: vec2, rot: f32, scale: vec2, tint: RGBA32, texture: &Texture2D) {
@@ -69,7 +92,7 @@ impl Graphics {
 
     pub fn draw_line(from: vec2, to: vec2, colors: [RGBA32; 2]) { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        graphics.active_scope.draw_lines(LineSubmitCmd { verts: [from, to], cols: colors });
+        graphics.active_scope.draw_line(LineSubmitCmd { verts: [from, to], cols: colors });
     }
 
     /// Returns the current camera data.
@@ -170,23 +193,43 @@ impl Graphics {
 
 
     pub(crate) fn init() {
-        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-
-        graphics.thread = Some(std::thread::current().id());
-        graphics.white_texture = Some(Texture2D::new(
-            Pixels::new(vec![255, 255, 255, 255], uvec2(1, 1), PixelFormat::RGBA8),
-            TextureSampling { filtering: TextureFiltering::Nearest, wrapping: TextureWrapping::Clamp },
-        ).handle());
+        _ = WHITE_TEX.get(); // Initialize WHITE_TEX because why not
     }
 
-    pub(crate) fn begin_render(camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
+    pub(crate) fn begin_render(camera: CameraData, target_res: uvec2, ui_res: Option<uvec2>, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        
         graphics.active_scope.begin_render(camera, target_res, clear_col, pipeline);
+        if let Some(ui_res) = ui_res {
+            graphics.ui_enabled = true;
+            graphics.ui_scope.begin_render(ui_res, pipeline);
+        } else {
+            graphics.ui_enabled = false;
+        }
     }
 
     pub(crate) fn end_render(real_window_res: uvec2) -> RenderStats { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        return graphics.active_scope.end_render(&RenderTexture::to_screen(real_window_res));
+
+        // Swap with decoys so the borrow checker shuts the fuck up.
+        let mut decoy_scope = RenderScope::new();
+        let mut decoy_ui_scope = UIScope::new();
+        std::mem::swap(&mut decoy_scope, &mut graphics.active_scope);
+        std::mem::swap(&mut decoy_ui_scope, &mut graphics.ui_scope);
+
+        let ui_data = if graphics.ui_enabled {
+            Some(decoy_ui_scope.get_scene_data())
+        } else {
+            None
+        };
+        
+        let stats = decoy_scope.end_render(&RenderTexture::to_screen(real_window_res), false, ui_data);
+
+        // Swap them back so nobody notices
+        std::mem::swap(&mut decoy_scope, &mut graphics.active_scope);
+        std::mem::swap(&mut decoy_ui_scope, &mut graphics.ui_scope);
+
+        return stats;
     }
 
     pub(crate) fn swap_scope(scope: &mut RenderScope) {
@@ -210,4 +253,26 @@ impl Default for CameraData {
 }
 
 
+/// Holds all the required information to start a frame.
+pub struct FrameSetup<'a> {
+    /// Camera for regular rendering.
+    pub camera: CameraData,
+    
+    /// Target resolution for regular rendering.
+    pub target_res: uvec2,
+    
+    /// Target resolution for UI rendering. Set to `None` to disable UI rendering.
+    pub ui_res: Option<uvec2>,
 
+    /// Clear color for regular rendering. This is the color that will be placed in the background.
+    pub clear_col: RGBA32,
+
+    /// Optional custom render pipeline.
+    pub pipeline: Option<&'a dyn RenderPipeline>,
+}
+
+impl<'a> Default for FrameSetup<'a> {
+    fn default() -> Self {
+        Self { camera: CameraData::default(), target_res: uvec2::ONE, ui_res: None, clear_col: RGBA32::BLACK, pipeline: None }
+    }
+}

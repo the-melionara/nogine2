@@ -1,7 +1,7 @@
 use std::{ffi::CString, sync::{atomic::{AtomicBool, Ordering}, RwLock}, thread::ThreadId, time::{Duration, Instant}};
 
 use nogine2_core::{assert_expr, crash, event::Event, log_info, math::vector2::{ivec2, uvec2, vec2}};
-use nogine2_graphics::{colors::rgba::RGBA32, global_begin_render, global_end_render, graphics::{pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, CameraData}, init_graphics};
+use nogine2_graphics::{global_begin_render, global_end_render, graphics::{pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, FrameSetup}, init_graphics};
 
 use crate::{deinit_glfw, glfw::{glfwCreateWindow, glfwDestroyWindow, glfwGetFramebufferSize, glfwGetPrimaryMonitor, glfwGetProcAddress, glfwGetVideoMode, glfwGetWindowMonitor, glfwGetWindowSize, glfwIconifyWindow, glfwMakeContextCurrent, glfwMaximizeWindow, glfwPollEvents, glfwRequestWindowAttention, glfwRestoreWindow, glfwSetCursorPosCallback, glfwSetKeyCallback, glfwSetMouseButtonCallback, glfwSetScrollCallback, glfwSetWindowMonitor, glfwSetWindowSize, glfwSetWindowTitle, glfwSwapBuffers, glfwSwapInterval, glfwWindowShouldClose, GLFWbool, GLFWwindow}, glfw_callbacks, init_glfw, input::Input};
 
@@ -82,16 +82,16 @@ impl Window {
     }
 
     /// Executes at the start of every frame.
-    pub fn pre_tick<'a>(&'a mut self, camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: Option<&'a dyn RenderPipeline>) {
+    pub fn pre_tick<'a>(&'a mut self, setup: FrameSetup<'a>) {
         assert_main_thread!(self);
 
-        let pipeline = if let Some(pipeline) = pipeline {
+        let pipeline = if let Some(pipeline) = setup.pipeline {
             unsafe { std::mem::transmute::<_, *const dyn RenderPipeline>(pipeline) } // Hack to stop misdiagnosis from rust (?)
         } else {
             &DEFAULT_PIPELINE as *const dyn RenderPipeline
         };
 
-        global_begin_render(camera, target_res, clear_col, pipeline);
+        global_begin_render(setup.camera, setup.target_res, setup.ui_res, setup.clear_col, pipeline);
         PRE_TICK_EVS.read().unwrap().call(self);
     }
 

@@ -8,7 +8,7 @@ use super::{batch::BatchData, texture::rendertex::RenderTexture};
 
 /// Trait for customlizable render pipelines.
 pub trait RenderPipeline {
-    fn render(&self, target_rt: &RenderTexture, scene_data: SceneData<'_>, clear_col: RGBA32, stats: &mut RenderStats);
+    fn render(&self, target_rt: &RenderTexture, scene_data: Option<SceneData<'_>>, ui_data: Option<SceneData<'_>>, clear_col: RGBA32, stats: &mut RenderStats);
 }
 
 
@@ -27,7 +27,8 @@ impl<'a> SceneData<'a> {
         test_main_thread();
     
         if rt.dims() != self.batch_data.target_res() {
-            log_error!("Couldn't render! RenderTexture must have the specified target resolution to be able to render a scene!");
+            // FIXME: This error is triggered at least on X11 when resizing!
+            log_error!("Couldn't render! RenderTexture must have the specified target resolution to be able to render a scene! (render tex dims are {}, target res is {})", rt.dims(), self.batch_data.target_res());
             return;
         }
 
@@ -44,9 +45,14 @@ impl<'a> SceneData<'a> {
 pub struct DefaultPipeline;
 
 impl RenderPipeline for DefaultPipeline {
-    fn render(&self, target_rt: &RenderTexture, scene_data: SceneData<'_>, clear_col: RGBA32, stats: &mut RenderStats) {
+    fn render(&self, target_rt: &RenderTexture, scene_data: Option<SceneData<'_>>, ui_data: Option<SceneData<'_>>, clear_col: RGBA32, stats: &mut RenderStats) {
         target_rt.clear(clear_col);
-        scene_data.render_to(target_rt, stats);
+        if let Some(scene_data) = scene_data {
+            scene_data.render_to(target_rt, stats);
+        }
+        if let Some(ui_data) = ui_data {
+            ui_data.render_to(target_rt, stats);
+        }
     }
 }
 
