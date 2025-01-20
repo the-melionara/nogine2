@@ -2,7 +2,7 @@ use std::{marker::PhantomData, num::Wrapping};
 
 use nogine2_core::math::{lerp::CompLerp, rect::Rect, vector2::{uvec2, vec2}};
 
-use crate::{colors::rgba::RGBA32, graphics::{scope::RenderScope, texture::{Texture2D, TextureHandle}, RectSubmitCmd, WHITE_TEX}};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{scope::RenderScope, texture::{sprite::Sprite, Texture2D, TextureHandle}, RectSubmitCmd, WHITE_TEX}};
 
 use super::{hash, layout::{horizontal::UIHorizontalLayout, vertical::UIVerticalLayout}, Anchor, UIHash, UIWidget};
 
@@ -34,6 +34,10 @@ impl<'a> UIArea<'a> {
 
     pub fn draw_texture(&self, anchor: Anchor, offset: vec2, rot: f32, scale: vec2, tint: RGBA32, texture: &Texture2D) {
         return self.draw_texture_adv(anchor, offset, rot, scale, [tint; 4], texture.handle(), Rect::IDENT);
+    }
+    
+    pub fn draw_sprite(&self, anchor: Anchor, offset: vec2, rot: f32, scale: vec2, sprite: &Sprite) {
+        return self.draw_texture_adv(anchor, offset, rot, scale, [RGBA32::WHITE; 4], sprite.handle().clone(), sprite.uv_rect());
     }
         
     pub fn draw_texture_adv(&self, anchor: Anchor, offset: vec2, rot: f32, scale: vec2, tint: [RGBA32; 4], texture: TextureHandle, uv_rect: Rect) {
