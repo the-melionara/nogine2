@@ -9,6 +9,9 @@ use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
+pub mod ui;
+
+/// Basic render scope for scene rendering.
 pub struct RenderScope {
     batch_data: BatchData,
     tex_ppu: f32,
@@ -54,21 +57,29 @@ impl RenderScope {
         Graphics::swap_scope(self);
         f();
         Graphics::swap_scope(self);
-        return self.end_render(rt);
+        return self.end_render(rt, false, None);
     }
 
     pub(crate) fn draw_rect(&mut self, cmd: RectSubmitCmd) {
         test_main_thread();
         assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
+        let inverted_y = self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN);
 
-        let tf_mat = mat3::tf_matrix(cmd.pos, cmd.rot, cmd.extents.scale(vec2(1.0, -1.0)));
+        let y_scaling = if inverted_y { -1.0 } else { 1.0 };
+        let tf_mat = mat3::tf_matrix(cmd.pos.scale(vec2(1.0, y_scaling)), cmd.rot, cmd.extents.scale(vec2(1.0, -y_scaling)));
 
+        let uvs = if inverted_y {
+            [cmd.uv_rect.ld(), cmd.uv_rect.lu(), cmd.uv_rect.ru(), cmd.uv_rect.rd()]
+        } else {
+            [cmd.uv_rect.lu(), cmd.uv_rect.ld(), cmd.uv_rect.rd(), cmd.uv_rect.ru()]
+        };
+    
         let user_data = self.user_data;
         let verts = &[
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[0], uv: cmd.uv_rect.lu(), tex_id: 0, user_data },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[1], uv: cmd.uv_rect.ld(), tex_id: 0, user_data },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[2], uv: cmd.uv_rect.rd(), tex_id: 0, user_data },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[3], uv: cmd.uv_rect.ru(), tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[0], uv: uvs[0], tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[1], uv: uvs[1], tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[2], uv: uvs[2], tex_id: 0, user_data },
+            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[3], uv: uvs[3], tex_id: 0, user_data },
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
    
@@ -82,8 +93,9 @@ impl RenderScope {
         test_main_thread();
         assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
 
+        let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let verts = cmd.points.iter().map(|(pos, col)|
-            BatchVertex { pos: *pos, tint: *col, uv: vec2::ZERO, tex_id: 0, user_data: self.user_data }
+            BatchVertex { pos: (*pos).scale(vec2(1.0, y_scaling)), tint: *col, uv: vec2::ZERO, tex_id: 0, user_data: self.user_data }
         ).collect::<Vec<_>>();
 
         let blending = self.blending;
@@ -92,14 +104,15 @@ impl RenderScope {
         self.batch_data.push(BatchPushCmd::Points { verts: &verts, blending, material }, culling_enabled);
     }
 
-    pub(crate) fn draw_lines(&mut self, cmd: LineSubmitCmd) {
+    pub(crate) fn draw_line(&mut self, cmd: LineSubmitCmd) {
         test_main_thread();
         assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
 
+        let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let user_data = self.user_data;
         let verts = [
-            BatchVertex { pos: cmd.verts[0], tint: cmd.cols[0], uv: vec2::ZERO, tex_id: 0, user_data },
-            BatchVertex { pos: cmd.verts[1], tint: cmd.cols[1], uv: vec2::ZERO, tex_id: 0, user_data },
+            BatchVertex { pos: cmd.verts[0].scale(vec2(1.0, y_scaling)), tint: cmd.cols[0], uv: vec2::ZERO, tex_id: 0, user_data },
+            BatchVertex { pos: cmd.verts[1].scale(vec2(1.0, y_scaling)), tint: cmd.cols[1], uv: vec2::ZERO, tex_id: 0, user_data },
         ];
 
         let blending = self.blending;
@@ -170,7 +183,7 @@ impl RenderScope {
     }
 
     /// Returns the current configuration.
-    pub fn cfg(&self) -> RenderScopeCfgFlags {
+    pub const fn cfg(&self) -> RenderScopeCfgFlags {
         self.cfg_flags
     }
 
@@ -185,26 +198,43 @@ impl RenderScope {
     }
 
     /// Sets the configuration.
-    pub fn set_cfg(&mut self, flags: RenderScopeCfgFlags) {
+    pub const fn set_cfg(&mut self, flags: RenderScopeCfgFlags) {
         self.cfg_flags = flags;
     }
     
 
-    pub(crate) fn begin_render(&mut self, camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
+    pub(crate) fn begin_render(&mut self, mut camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
+        if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) {
+            camera.center.1 = -camera.center.1;
+        }
+        
         self.batch_data.setup_frame(camera, target_res);
         self.render_started = true;
         self.pipeline = Some(PipelinePtr(pipeline));
         self.clear_col = clear_col;
     }
 
-    pub(crate) fn end_render(&mut self, rt: &RenderTexture) -> RenderStats { 
+    pub(crate) fn end_render(&mut self, rt: &RenderTexture, is_ui: bool, complement_data: Option<SceneData<'_>>) -> RenderStats { 
         assert_expr!(self.render_started, "Window::post_tick must be called after Window::pre_tick!");
         self.render_started = false;
 
         let mut stats = RenderStats::new();
         let render_pipeline = unsafe { self.pipeline.as_ref().unwrap().0.as_ref().unwrap() };
-        render_pipeline.render(rt, SceneData::new(&self.batch_data), self.clear_col, &mut stats);
+
+        if is_ui {
+            render_pipeline.render(rt, complement_data, Some(self.get_scene_data()), self.clear_col, &mut stats);
+        } else {
+            render_pipeline.render(rt, Some(self.get_scene_data()), complement_data, self.clear_col, &mut stats);
+        }
         return stats;
+    }
+
+    fn get_scene_data(&self) -> SceneData<'_> {
+        SceneData::new(&self.batch_data)
+    }
+
+    fn target_res(&self) -> uvec2 {
+        self.batch_data.target_res()
     }
 }
 
@@ -214,10 +244,14 @@ bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct RenderScopeCfgFlags : u8 {
         /// Culls render submits outside of the camera's bounds. Enabled by default.
-        const CULLING = 1;
+        const CULLING = 1 << 0;
+
+        /// Defines positive Y as down and negative Y as up. Enabled by default on UI scopes.
+        const POSITIVE_Y_IS_DOWN = 1 << 1;
 
         /// Default configuration.
         const DEFAULT = Self::CULLING.bits();
+        const DEFAULT_UI = Self::DEFAULT.bits() | Self::POSITIVE_Y_IS_DOWN.bits();
     }
 }
 
