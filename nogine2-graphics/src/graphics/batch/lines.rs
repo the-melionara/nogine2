@@ -131,5 +131,6 @@ impl LnsBatchBuffers {
     fn clear(&mut self) {
         self.vlen = 0;
         self.elen = 0;
+        self.verts.clear();
     }
 }
