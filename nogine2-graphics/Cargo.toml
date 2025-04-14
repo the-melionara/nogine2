@@ -9,9 +9,12 @@ nogine2-core = { path = "../nogine2-core" }
 image = { version = "0.25.4", optional = true }
 uuid = { version = "1.11.0", features = ["v4"] }
 bitflags = "2.6.0"
+nogine2-msdfgen = { path = "../nogine2-msdfgen", optional = true }
 
 [build-dependencies]
 gl_generator = "0.14.0"
 
 [features]
 image-loading = ["dep:image"]
+font-loading = ["dep:nogine2-msdfgen"]
+default = ["font-loading"]

@@ -10,6 +10,7 @@ nogine2-graphics = { path = "../nogine2-graphics", default-features = false }
 
 [features]
 image-loading = ["nogine2-graphics/image-loading"]
+font-loading = ["nogine2-graphics/font-loading"]
 
 [[example]]
 name = "drawing"
@@ -22,3 +23,7 @@ required-features = ["image-loading"]
 [[example]]
 name = "ui"
 required-features = ["image-loading"]
+
+[[example]]
+name = "text"
+required-features = ["font-loading"]

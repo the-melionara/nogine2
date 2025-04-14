@@ -1,3 +1,5 @@
+#![feature(portable_simd)]
+
 pub mod vector4;
 pub mod vector3;
 pub mod vector2;

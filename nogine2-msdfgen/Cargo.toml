@@ -1,8 +1,8 @@
 [package]
-name = "nogine2-core"
+name = "nogine2-msdfgen"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 nogine2-math = { path = "../nogine2-math" }
-native-dialog = "0.7.0"
+ttf-parser = "0.25.1"

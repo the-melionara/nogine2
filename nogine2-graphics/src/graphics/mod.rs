@@ -20,6 +20,7 @@ pub mod scope;
 pub mod gfx;
 pub mod material;
 pub mod ui;
+pub mod text;
 
 mod batch;
 
