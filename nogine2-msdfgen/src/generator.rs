@@ -153,14 +153,17 @@ fn sdistance(b_t: vec2, dbdt_t: vec2, p: vec2) -> f32 {
     return vec2_cross(dbdt_t, b_t - p).signum() * (b_t - p).magnitude();
 }
 
-/// See (2.28)
-fn dist_to_line(p: vec2, p0: vec2, p1: vec2) -> f32 {
-    let t = ((p - p0).dot(p1 - p0) / (p1 - p0).dot(p1 - p0)).clamp(0.0, 1.0);
-    return line(p0, p1, t).dist_to(p);
+/// See (2.28) and (2.9), returns `(dist, t)` for convenience
+fn dist_to_line(p: vec2, p0: vec2, p1: vec2, pseudo: bool) -> (f32, f32) {
+    let mut t = (p - p0).dot(p1 - p0) / (p1 - p0).dot(p1 - p0);
+    if !pseudo {
+        t = t.clamp(0.0, 1.0);
+    }
+    return (line(p0, p1, t).dist_to(p), t);
 }
 
-/// See (2.38)
-fn dist_to_bezier2(p: vec2, p0: vec2, p1: vec2, p2: vec2) -> f32 {
+/// See (2.38) and (2.9), returns `(dist, t)` for convenience
+fn dist_to_bezier2(p: vec2, p0: vec2, p1: vec2, p2: vec2, pseudo: bool) -> (f32, f32) {
     let pv = p - p0;
     let pv1 = p1 - p0;
     let pv2 = p2 - p1 * 2.0 + p0;
@@ -170,17 +173,36 @@ fn dist_to_bezier2(p: vec2, p0: vec2, p1: vec2, p2: vec2) -> f32 {
         pv1.dot(pv2) * 3.0,
         pv1.dot(pv1) * 2.0 - pv2.dot(pv),
         pv1.dot(pv),
+        !pseudo
     );
 
     let mut min = f32::INFINITY;
+    let mut t_of_min = 0.0;
     for t in roots.as_ref() {
-        min = min.min(bezier2(p0, p1, p2, *t).dist_to(p));
+        if !pseudo || (*t >= 0.0 && *t <= 1.0) {
+            let new = bezier2(p0, p1, p2, *t).dist_to(p);
+            if new < min {
+                min = new;
+                t_of_min = *t;
+            }
+        } else {
+            let line_t = t.clamp(0.0, 1.0);
+            
+            let origin = if line_t > 0.5 { p2 } else { p0 };
+            let dir = bezier2_dt(p0, p1, p2, line_t);
+            
+            let new = dist_to_line(p, origin, origin + dir, true).0;
+            if new < min {
+                min = new;
+                t_of_min = *t;
+            }
+        }
     }
-    return min;
+    return (min, t_of_min);
 }
 
-/// See (2.40)
-fn dist_to_bezier3(p: vec2, p0: vec2, p1: vec2, p2: vec2, p3: vec2) -> f32 {
+/// See (2.40) and (2.9), returns `(dist, t)` for convenience
+fn dist_to_bezier3(p: vec2, p0: vec2, p1: vec2, p2: vec2, p3: vec2, pseudo: bool) -> (f32, f32) {
     let pv = p - p0;
     let pv1 = p1 - p0;
     let pv2 = p2 - p1 * 2.0 + p0;
@@ -193,17 +215,36 @@ fn dist_to_bezier3(p: vec2, p0: vec2, p1: vec2, p2: vec2, p3: vec2) -> f32 {
         pv1.dot(pv2) * 9.0 - pv2.dot(pv),
         pv1.dot(pv1) * 3.0 - pv2.dot(pv) * 2.0,
         pv1.dot(pv),
+        !pseudo,
     );
 
     let mut min = f32::INFINITY;
+    let mut t_of_min = 0.0;
     for t in roots.as_ref() {
-        min = min.min(bezier3(p0, p1, p2, p3, *t).dist_to(p));
+        if !pseudo || (*t >= 0.0 && *t <= 1.0) {
+            let new = bezier3(p0, p1, p2, p3, *t).dist_to(p);
+            if new < min {
+                min = new;
+                t_of_min = *t;
+            }
+        } else {
+            let line_t = t.clamp(0.0, 1.0);
+            
+            let origin = if line_t > 0.5 { p3 } else { p0 };
+            let dir = bezier3_dt(p0, p1, p2, p3, line_t);
+            
+            let new = dist_to_line(p, origin, origin + dir, true).0;
+            if new < min {
+                min = new;
+                t_of_min = *t;
+            }
+        }
     }
-    return min;
+    return (min, t_of_min);
 }
 
 /// Not really only cardano because it also depresses it but whatever
-fn cardano(a: f32, b: f32, c: f32, d: f32) -> Solutions<5> {
+fn cardano(a: f32, b: f32, c: f32, d: f32, bounded: bool) -> Solutions<5> {
     // https://proofwiki.org/wiki/Cardano%27s_Formula
 
     let q = (3.0 * a * c - b * b) / (9.0 * a * a);
@@ -215,23 +256,25 @@ fn cardano(a: f32, b: f32, c: f32, d: f32) -> Solutions<5> {
     let discriminant = q * q * q + r * r;
 
     let mut res = Solutions::new();
-    res.push(0.0);
-    res.push(1.0);
+    if bounded {
+        res.push(0.0);
+        res.push(1.0);
+    }
 
     let x1 = s + t - b / (3.0 * a);
-    if x1 > 0.0 && x1 < 1.0 {
+    if !bounded || (x1 > 0.0 && x1 < 1.0) {
         res.push(x1);
     }
             
     match discriminant.partial_cmp(&0.0).unwrap() {
         Ordering::Less | Ordering::Equal => { // all roots are real
             let x2 = Complex::<f32>::new(-(s + t) * 0.5 - b / (3.0 * a), SQRT_3 * 0.5 * (s - t));
-            if x2.real > 0.0 && x2.real < 1.0 && x2.imag.abs() < f32::EPSILON {
+            if (!bounded || (x2.real > 0.0 && x2.real < 1.0)) && x2.imag.abs() < f32::EPSILON {
                 res.push(x2.real);
             }
 
             let x3 = Complex::<f32>::new(-(s + t) - 0.5 - b / (3.0 * a), SQRT_3 * 0.5 * (s - t));
-            if x3.real > 0.0 && x3.real < 1.0 && x3.imag.abs() < f32::EPSILON {
+            if (!bounded || (x3.real > 0.0 && x3.real < 1.0)) && x3.imag.abs() < f32::EPSILON {
                 res.push(x3.real);
             }
         },
@@ -241,7 +284,15 @@ fn cardano(a: f32, b: f32, c: f32, d: f32) -> Solutions<5> {
 }
 
 /// Done with newthon's method. Maybe there's something better, maybe not.
-fn quintic_aproximation(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Solutions<7> {
+fn quintic_aproximation(
+    a: f32,
+    b: f32,
+    c: f32,
+    d: f32,
+    e: f32,
+    f: f32,
+    bounded: bool
+) -> Solutions<7> {
     fn g(x: f32, a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> f32 {
         let x2 = x * x;
         let x3 = x2 * x;
@@ -260,8 +311,10 @@ fn quintic_aproximation(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Solut
     }
 
     let mut solutions = Solutions::new();
-    solutions.push(0.0);
-    solutions.push(1.0);
+    if bounded {
+        solutions.push(0.0);
+        solutions.push(1.0);
+    }
 
     for i in 0..5 {
         let mut x = i as f32 * 0.2;
@@ -273,7 +326,7 @@ fn quintic_aproximation(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Solut
             x = x - gx / dgdx(x, a, b, c, d, e);
         }
 
-        if x > 0.0 && x < 1.0 {
+        if !bounded || (x > 0.0 && x < 1.0) {
             solutions.push(x);
         }
     }
