@@ -1,3 +1,6 @@
+use std::{cmp::Ordering, f32::consts::SQRT_3};
+
+use easy_complex::Complex;
 use nogine2_math::{lerp::Lerp, vector2::{uvec2, vec2}};
 use ttf_parser::{Face, OutlineBuilder};
 
@@ -161,15 +164,19 @@ fn dist_to_bezier2(p: vec2, p0: vec2, p1: vec2, p2: vec2) -> f32 {
     let pv = p - p0;
     let pv1 = p1 - p0;
     let pv2 = p2 - p1 * 2.0 + p0;
-    //let pv3 = p3 - p2 * 3.0 + p1 * 3.0 - p0;
     
-    let t = cardano( // TODO: ACTUALLY USE ALL ROOTS
+    let roots = cardano(
         pv2.dot(pv2),
         pv1.dot(pv2) * 3.0,
         pv1.dot(pv1) * 2.0 - pv2.dot(pv),
         pv1.dot(pv),
-    ).clamp(0.0, 1.0);
-    return bezier2(p0, p1, p2, t).dist_to(p);
+    );
+
+    let mut min = f32::INFINITY;
+    for t in roots.as_ref() {
+        min = min.min(bezier2(p0, p1, p2, *t).dist_to(p));
+    }
+    return min;
 }
 
 /// See (2.40)
@@ -179,32 +186,62 @@ fn dist_to_bezier3(p: vec2, p0: vec2, p1: vec2, p2: vec2, p3: vec2) -> f32 {
     let pv2 = p2 - p1 * 2.0 + p0;
     let pv3 = p3 - p2 * 3.0 + p1 * 3.0 - p0;
     
-    let t = quintic_aproximation( // TODO: ACTUALLY USE ALL ROOTS
+    let roots = quintic_aproximation(
         pv3.dot(pv3),
         pv2.dot(pv3) * 5.0,
         pv1.dot(pv3) * 4.0 + pv2.dot(pv2) * 6.0,
         pv1.dot(pv2) * 9.0 - pv2.dot(pv),
         pv1.dot(pv1) * 3.0 - pv2.dot(pv) * 2.0,
         pv1.dot(pv),
-    ).clamp(0.0, 1.0);
-    return bezier3(p0, p1, p2, p3, t).dist_to(p);
+    );
+
+    let mut min = f32::INFINITY;
+    for t in roots.as_ref() {
+        min = min.min(bezier3(p0, p1, p2, p3, *t).dist_to(p));
+    }
+    return min;
 }
 
 /// Not really only cardano because it also depresses it but whatever
-fn cardano(a: f32, b: f32, c: f32, d: f32) -> f32 {
-    // I still hate maths
-    let p = (3.0 * a * c - b * b) / (3.0 * a * a);
-    let q = (2.0 * b * b * b - 9.0 * a * b * c + 27.0 * a * a * d) / (27.0 * a * a * a);
+fn cardano(a: f32, b: f32, c: f32, d: f32) -> Solutions<5> {
+    // https://proofwiki.org/wiki/Cardano%27s_Formula
 
-    let delta = (q * 0.5) * (q * 0.5) + (p / 3.0) * (p / 3.0) * (p / 3.0);
-    let x = (-q * 0.5 + (delta).sqrt()).powf(1.0 / 3.0) +
-        (-q * 0.5 - (delta).sqrt()).powf(1.0 / 3.0);
+    let q = (3.0 * a * c - b * b) / (9.0 * a * a);
+    let r = (9.0 * a * b * c - 27.0 * a * a * d - 2.0 * b * b * b) / (54.0 * a * a * a);
 
-    return x - b / (3.0 * a);
+    let s = (r + (q * q * q + r * r).sqrt()).powf(1.0 / 3.0);
+    let t = (r - (q * q * q + r * r).sqrt()).powf(1.0 / 3.0);
+
+    let discriminant = q * q * q + r * r;
+
+    let mut res = Solutions::new();
+    res.push(0.0);
+    res.push(1.0);
+
+    let x1 = s + t - b / (3.0 * a);
+    if x1 > 0.0 && x1 < 1.0 {
+        res.push(x1);
+    }
+            
+    match discriminant.partial_cmp(&0.0).unwrap() {
+        Ordering::Less | Ordering::Equal => { // all roots are real
+            let x2 = Complex::<f32>::new(-(s + t) * 0.5 - b / (3.0 * a), SQRT_3 * 0.5 * (s - t));
+            if x2.real > 0.0 && x2.real < 1.0 && x2.imag.abs() < f32::EPSILON {
+                res.push(x2.real);
+            }
+
+            let x3 = Complex::<f32>::new(-(s + t) - 0.5 - b / (3.0 * a), SQRT_3 * 0.5 * (s - t));
+            if x3.real > 0.0 && x3.real < 1.0 && x3.imag.abs() < f32::EPSILON {
+                res.push(x3.real);
+            }
+        },
+        Ordering::Greater => {} // one real root and two complex conjugates
+    }
+    return res;
 }
 
 /// Done with newthon's method. Maybe there's something better, maybe not.
-fn quintic_aproximation(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> f32 {
+fn quintic_aproximation(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Solutions<7> {
     fn g(x: f32, a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> f32 {
         let x2 = x * x;
         let x3 = x2 * x;
@@ -222,15 +259,25 @@ fn quintic_aproximation(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> f32 {
         return 5.0 * a * x4 + 4.0 * b * x3 + 3.0 * c * x2 + 2.0 * d * x + e;
     }
 
-    let mut x = 0.5;
-    for _ in 0..10 { // 10 iterations, take it or leave it
-        let gx = g(x, a, b, c, d, e, f);
-        if gx.abs() < f32::EPSILON {
-            break;
+    let mut solutions = Solutions::new();
+    solutions.push(0.0);
+    solutions.push(1.0);
+
+    for i in 0..5 {
+        let mut x = i as f32 * 0.2;
+        for _ in 0..10 { // 10 iterations, take it or leave it
+            let gx = g(x, a, b, c, d, e, f);
+            if gx.abs() < f32::EPSILON {
+                break;
+            }
+            x = x - gx / dgdx(x, a, b, c, d, e);
         }
-        x = x - gx / dgdx(x, a, b, c, d, e);
+
+        if x > 0.0 && x < 1.0 {
+            solutions.push(x);
+        }
     }
-    return x;
+    return solutions;
 }
 
 fn line(a: vec2, b: vec2, t: f32) -> vec2 {
@@ -274,4 +321,26 @@ fn bezier3_dt(a: vec2, b: vec2, c: vec2, d: vec2, t: f32) -> vec2 {
         b * (9.0 * t2 - 12.0 * t + 3.0) +
         c * (-9.0 * t2 + 6.0 * t) +
         d * (3.0 * t2);
+}
+
+struct Solutions<const N: usize> {
+    inner: [f32; N],
+    len: usize,
+}
+
+impl<const N: usize> Solutions<N> {
+    fn new() -> Self {
+        Self { inner: [0.0; N], len: 0 }
+    }
+
+    fn push(&mut self, val: f32) {
+        assert!(self.len < N);
+
+        self.inner[self.len] = val;
+        self.len += 1;
+    }
+
+    fn as_ref(&self) -> &[f32] {
+        &self.inner[..self.len]
+    }
 }
