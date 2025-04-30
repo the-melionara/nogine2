@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+easy_complex = "0.4.1"
 nogine2-math = { path = "../nogine2-math" }
 ttf-parser = "0.25.1"

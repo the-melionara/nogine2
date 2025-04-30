@@ -312,6 +312,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "easy_complex"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81cf0f8d0367b0dd9b627e3f51fbe08a3830b81918f5d74ef15046076cf3c8f6"
+
+[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -733,6 +739,7 @@ dependencies = [
 name = "nogine2-msdfgen"
 version = "0.1.0"
 dependencies = [
+ "easy_complex",
  "nogine2-math",
  "ttf-parser",
 ]
