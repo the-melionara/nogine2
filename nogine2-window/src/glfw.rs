@@ -296,5 +296,6 @@ extern "C" {
 }
 
 // TODO: Actually do good links here
+#[cfg(target_os = "linux")]
 #[link(name = "X11")]
 extern "C" {}
