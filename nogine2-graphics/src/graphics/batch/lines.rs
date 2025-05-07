@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nogine2_core::{log_error, math::{mat3x3::mat3, vector2::vec2}};
 
-use crate::{gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{blending::BlendingMode, material::Material, vertex::BatchVertex}};
+use crate::{gl_wrapper::{buffer::{GlBuffer, GlBufferTarget, GlBufferUsage}, gl_render_elements, gl_uniform, to_byte_slice, vao::GlVertexArray, GlRenderMode}, graphics::{blending::BlendingMode, material::Material, vertex::BatchVertex, WHITE_TEX}};
 
 pub struct LnsBatchRenderCall {
     buffers: LnsBatchBuffers,
@@ -22,6 +22,8 @@ impl LnsBatchRenderCall {
             log_error!("GL_ERROR: Couldn't render!");
             return;
         }
+
+        WHITE_TEX.get().bind_to(0);
     
         if let Some(view_mat_loc) = self.material.uniform_loc(b"uViewMat\0") {
             gl_uniform::set_mat3(view_mat_loc, view_mat);
