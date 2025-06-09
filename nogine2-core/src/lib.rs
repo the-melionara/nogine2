@@ -1,7 +1,7 @@
 #![feature(portable_simd)]
 
 pub mod bytesize;
-pub mod math;
+pub use nogine2_math as math;
 pub mod log;
 pub mod event;
 pub mod main_thread;

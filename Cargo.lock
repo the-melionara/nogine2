@@ -706,8 +706,8 @@ dependencies = [
 name = "nogine2-core"
 version = "0.1.0"
 dependencies = [
- "gamedev-math",
  "native-dialog",
+ "nogine2-math",
 ]
 
 [[package]]
@@ -719,6 +719,13 @@ dependencies = [
  "image",
  "nogine2-core",
  "uuid",
+]
+
+[[package]]
+name = "nogine2-math"
+version = "0.1.0"
+dependencies = [
+ "gamedev-math",
 ]
 
 [[package]]

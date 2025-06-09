@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gamedev-math = { git = "https://github.com/JustMel69/gamedev-math.git" }
+nogine2-math = { path = "../nogine2-math" }
 native-dialog = "0.7.0"

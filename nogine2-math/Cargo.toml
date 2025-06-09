@@ -1,0 +1,7 @@
+[package]
+name = "nogine2-math"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamedev-math = { git = "https://github.com/JustMel69/gamedev-math.git" }
