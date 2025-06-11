@@ -58,7 +58,8 @@ impl SpriteAtlas {
                 .scale(vec2::from(self.tex.dims())) + vec2::one(end_texel_offset))
                 .inv_scale(vec2::from(self.tex.dims())),
         };
-        return Sprite { handle: self.tex.handle(), uv_rect };
+        let dims = self.cell_size.scale(uvec2::from(rect.size()));
+        return Sprite { handle: self.tex.handle(), uv_rect, dims };
     }
 }
 
@@ -68,6 +69,7 @@ impl SpriteAtlas {
 pub struct Sprite {
     handle: TextureHandle,
     uv_rect: Rect,
+    dims: uvec2,
 }
 
 impl Sprite {
@@ -80,7 +82,7 @@ impl Sprite {
     }
 
     pub fn dims(&self) -> uvec2 {
-        uvec2::from(vec2::from(self.handle.dims()).scale(self.uv_rect.size()))
+        self.dims
     }
 }
 
