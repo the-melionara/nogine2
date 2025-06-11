@@ -5,6 +5,7 @@ use material::Material;
 use nogine2_core::{crash, lazy::LazyCloner, math::{rect::Rect, vector2::{uvec2, vec2}}};
 use pipeline::{RenderPipeline, RenderStats};
 use scope::{ui::UIScope, LineSubmitCmd, PointsSubmitCmd, RectSubmitCmd, RenderScope, RenderScopeCfgFlags};
+use text::TextCfg;
 use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, sprite::Sprite, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 use ui::area::UIArea;
 
@@ -94,6 +95,11 @@ impl Graphics {
     pub fn draw_line(from: vec2, to: vec2, colors: [RGBA32; 2]) { 
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         graphics.active_scope.draw_line(LineSubmitCmd { verts: [from, to], cols: colors });
+    }
+
+    pub fn draw_text(cfg: TextCfg, text: &str) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.draw_text(cfg, text);
     }
 
     /// Returns the current camera data.

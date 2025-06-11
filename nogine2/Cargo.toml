@@ -22,3 +22,7 @@ required-features = ["image-loading"]
 [[example]]
 name = "ui"
 required-features = ["image-loading"]
+
+[[example]]
+name = "bitmap_font"
+required-features = ["image-loading"]

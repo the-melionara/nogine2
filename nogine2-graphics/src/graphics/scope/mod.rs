@@ -5,7 +5,7 @@ use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::ma
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, texture::TextureHandle, CameraData, Graphics};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::TextEngine, font::TextStyle, TextCfg}, texture::TextureHandle, CameraData, Graphics};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -20,6 +20,8 @@ pub struct RenderScope {
     user_data: i32,
     material: Option<Arc<Material>>,
 
+    text_engine: TextEngine,
+    
     cfg_flags: RenderScopeCfgFlags,
 
     render_started: bool,
@@ -37,6 +39,8 @@ impl RenderScope {
             user_data: 0,
             material: None,
 
+            text_engine: TextEngine::new(),
+            
             cfg_flags: RenderScopeCfgFlags::DEFAULT,
 
             render_started: false,
@@ -119,6 +123,32 @@ impl RenderScope {
         let material = self.material();
         let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
         self.batch_data.push(BatchPushCmd::Lines { verts, blending, material }, culling_enabled);
+    }
+
+    pub(crate) fn draw_text(&mut self, cfg: TextCfg, text: &str) {
+        test_main_thread();
+
+        self.text_engine.reset();
+        for c in text.chars() {
+            if c.is_whitespace() {
+                self.text_engine.advance_x(2.0 + cfg.font.space_width());
+                continue;
+            }
+            
+            if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
+                self.text_engine.add_sprite(vec2::ZERO, &sprite);
+                self.text_engine.advance_x(sprite.dims().0 as f32 + 1.0);
+            }
+        }
+
+        let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
+        let material = self.material();
+        self.text_engine.render(
+            &mut self.batch_data,
+            culling_enabled,
+            self.blending,
+            material,
+        );
     }
 
     /// Returns the current camera data.
