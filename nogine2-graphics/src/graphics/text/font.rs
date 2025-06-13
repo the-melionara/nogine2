@@ -8,20 +8,19 @@ pub trait Font {
     /// Returns the sprite of a char given a style. If the character is not availoable in a style,
     /// a fallback will be searched.
     fn get_char(&self, style: TextStyle, char: char) -> Option<(Sprite, TextStyle)>;
-    fn space_width(&self) -> f32;
+    fn cfg(&self) -> &FontCfg;
 }
 
 pub struct BitmapFont {
     styles: HashMap<TextStyle, StyledAtlasData>,
-    monospace: bool,
-    space_width: f32,
+    cfg: FontCfg,
 }
 
 impl BitmapFont {
     /// Creates a new BitmapFont from a `SpriteAtlas` and a `charset`.
     /// For layout information, see the docs of `BitmapFont::set_style`.
-    pub fn new(atlas: SpriteAtlas, charset: &str, monospace: bool, space_width: f32) -> Self {
-        let mut res = Self { styles: HashMap::new(), monospace, space_width };
+    pub fn new(atlas: SpriteAtlas, charset: &str, cfg: FontCfg) -> Self {
+        let mut res = Self { styles: HashMap::new(), cfg };
         res.set_style(TextStyle::Regular, atlas, charset);
         return res;
     }
@@ -33,7 +32,7 @@ impl BitmapFont {
         let width_in_cells = (atlas.tex().dims().0 / atlas.cell_size().0) as i32;
         let mut res = StyledAtlasData { atlas, rects: HashMap::new() };
 
-        if self.monospace {
+        if self.cfg.monospace {
             for (i, c) in charset.chars().enumerate() {
                 let pos = ivec2((i as i32) % width_in_cells, (i as i32) / width_in_cells);
                 let rect = IRect { start: pos, end: pos + ivec2::ONE };
@@ -117,10 +116,11 @@ impl Font for BitmapFont {
         }
     }
 
-    fn space_width(&self) -> f32 {
-        self.space_width
+    fn cfg(&self) -> &FontCfg {
+        &self.cfg
     }
 }
+
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TextStyle {
@@ -132,3 +132,21 @@ struct StyledAtlasData {
     rects: HashMap<char, IRect>,
 }
 
+
+pub struct FontCfg {
+    pub monospace: bool,
+
+    /// Measure::Percent is relative to the font size when rendering the text.
+    pub space_width: Measure,
+
+    /// Measure::Percent is relative to the font size when rendering the text.
+    pub char_separation: Measure,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Measure {
+    /// Percent (0 to 1) of some other metric.
+    Percent(f32),
+    /// Pixels in relation to the render target.
+    Pixels(f32),
+}

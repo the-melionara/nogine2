@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use nogine2_core::math::{rect::Rect, vector2::vec2};
+use nogine2_core::math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle}, vertex::BatchVertex}};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::{self, Sprite}, TextureHandle}, vertex::BatchVertex}};
 
 pub struct TextEngine {
     batches: Vec<TextBatch>,
     cursor: vec2,
+    extents: vec2,
 }
 
 impl TextEngine {
@@ -14,17 +15,23 @@ impl TextEngine {
         return Self {
             batches: Vec::new(),
             cursor: vec2::ZERO,
+            extents: vec2::ZERO,
         }
     }
 
     pub fn add_sprite(&mut self, offset: vec2, sprite: &Sprite, scale: f32) {
+        let rect = Rect {
+            start: self.cursor + offset,
+            end: self.cursor + offset + vec2::from(sprite.dims()) * scale,
+        };
+
+        if rect.left() < 0.0 || rect.right() > self.extents.0 ||
+            rect.down() < 0.0 || rect.up() > self.extents.1 {
+            return;
+        }
+        
         self.batches.push(TextBatch {
-            verts: [
-                self.cursor + offset,
-                self.cursor + offset + vec2::from(sprite.dims().yvec()) * scale,
-                self.cursor + offset + vec2::from(sprite.dims()) * scale,
-                self.cursor + offset + vec2::from(sprite.dims().xvec()) * scale,
-            ],
+            verts: [rect.ld(), rect.lu(), rect.ru(), rect.rd()],
             uvs: sprite.uv_rect(),
             texture: sprite.handle().clone(),
         });
@@ -37,6 +44,7 @@ impl TextEngine {
     pub fn render(
         &self,
         batch_data: &mut BatchData,
+        transform: mat3,
         culling_enabled: bool,
         blending: BlendingMode,
         material: Arc<Material>,
@@ -46,28 +54,28 @@ impl TextEngine {
                 BatchPushCmd::Triangles {
                     verts: &[
                         BatchVertex {
-                            pos: b.verts[0],
+                            pos: (&transform * vec3::from_xy(b.verts[0], 1.0)).xy(),
                             tint: RGBA32::WHITE,
                             uv: b.uvs.lu(),
                             tex_id: 0,
                             user_data: 0,
                         },
                         BatchVertex {
-                            pos: b.verts[1],
+                            pos: (&transform * vec3::from_xy(b.verts[1], 1.0)).xy(),
                             tint: RGBA32::WHITE,
                             uv: b.uvs.ld(),
                             tex_id: 0,
                             user_data: 0,
                         },
                         BatchVertex {
-                            pos: b.verts[2],
+                            pos: (&transform * vec3::from_xy(b.verts[2], 1.0)).xy(),
                             tint: RGBA32::WHITE,
                             uv: b.uvs.rd(),
                             tex_id: 0,
                             user_data: 0,
                         },
                         BatchVertex {
-                            pos: b.verts[3],
+                            pos: (&transform * vec3::from_xy(b.verts[3], 1.0)).xy(),
                             tint: RGBA32::WHITE,
                             uv: b.uvs.ru(),
                             tex_id: 0,
@@ -84,9 +92,10 @@ impl TextEngine {
         }
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, new_extents: vec2) {
         self.batches.clear();
         self.cursor = vec2::ZERO;
+        self.extents = new_extents;
     }
 }
 

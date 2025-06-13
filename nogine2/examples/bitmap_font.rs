@@ -1,6 +1,6 @@
-use std::fs::File;
+use std::{any::Any, fs::File};
 
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{text::{font::{BitmapFont, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{text::{font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, Input}, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -16,18 +16,20 @@ fn main() {
     let font = BitmapFont::new(
         atlas,
         "0123456789.,:;'()[]{}<>?!¿¡_*+-=/#%@~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚÚáéíóúüÑñ",
-        false, 0.5,
+        FontCfg {
+            monospace: false,
+            space_width: Measure::Percent(0.5),
+            char_separation: Measure::Percent(1.0 / 9.0),
+        }
     );
 
     Graphics::set_pixels_per_unit(16.0);
-    
-    let mut pos = vec2(0.0,0.0);
 
+    let mut text_pos = vec2::ZERO;
     while window.is_open() {
-        pos += vec2(1.0 * window.ts(),0.0);
         window.pre_tick(FrameSetup {
             camera: CameraData {
-                center: vec2::ZERO + pos,
+                center: vec2::ZERO,
                 extents: vec2(window.aspect_ratio() * 6.0, 6.0)
             },
             target_res: window.res(),
@@ -35,8 +37,20 @@ fn main() {
             ..Default::default()
         });
 
+        text_pos += vec2::from(Input::keyboard().axis2(
+            (Key::Left, Key::Down),
+            (Key::Right, Key::Up))
+        ) * window.ts();
+        
         Graphics::draw_text(
-            TextCfg { bounds: Rect::IDENT, font_size: 9.0, font: &font },
+            TextCfg {
+                origin: text_pos,
+                extents: vec2(32.0, 32.0),
+                rot: 0.0,
+                font_size: 9.0,
+                font: &font,
+                scale: vec2::ONE,
+            },
             "DELTARUNE TOMORROW"
         );
 

@@ -5,7 +5,7 @@ use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::ma
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::TextEngine, font::TextStyle, TextCfg}, texture::TextureHandle, CameraData, Graphics};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::TextEngine, font::{Measure, TextStyle}, TextCfg}, texture::TextureHandle, CameraData, Graphics};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -129,10 +129,16 @@ impl RenderScope {
         test_main_thread();
 
         let line_height = cfg.font_size / self.tex_ppu;
-        let char_separation = 1.0 / self.tex_ppu;
-        let space_width = cfg.font.space_width() * line_height;
+        let char_separation = match cfg.font.cfg().char_separation {
+            Measure::Percent(x) => x * line_height,
+            Measure::Pixels(x) => x / self.tex_ppu,
+        };
+        let space_width = match cfg.font.cfg().space_width {
+            Measure::Percent(x) => x * line_height,
+            Measure::Pixels(x) => x / self.tex_ppu,
+        };
 
-        self.text_engine.reset();
+        self.text_engine.reset(cfg.extents);
         for c in text.chars() {
             if c.is_whitespace() {
                 self.text_engine.advance_x(2.0 * char_separation + space_width);
@@ -155,6 +161,7 @@ impl RenderScope {
         let material = self.material();
         self.text_engine.render(
             &mut self.batch_data,
+            mat3::tf_matrix(cfg.origin, cfg.rot, cfg.scale.scale(vec2(1.0, -1.0))),
             culling_enabled,
             self.blending,
             material,
