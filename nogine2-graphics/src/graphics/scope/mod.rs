@@ -128,16 +128,26 @@ impl RenderScope {
     pub(crate) fn draw_text(&mut self, cfg: TextCfg, text: &str) {
         test_main_thread();
 
+        let line_height = cfg.font_size / self.tex_ppu;
+        let char_separation = 1.0 / self.tex_ppu;
+        let space_width = cfg.font.space_width() * line_height;
+
         self.text_engine.reset();
         for c in text.chars() {
             if c.is_whitespace() {
-                self.text_engine.advance_x(2.0 + cfg.font.space_width());
+                self.text_engine.advance_x(2.0 * char_separation + space_width);
                 continue;
             }
             
             if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
-                self.text_engine.add_sprite(vec2::ZERO, &sprite);
-                self.text_engine.advance_x(sprite.dims().0 as f32 + 1.0);
+                self.text_engine.add_sprite(
+                    vec2::ZERO,
+                    &sprite,
+                    line_height / sprite.dims().1 as f32
+                );
+
+                let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
+                self.text_engine.advance_x(width + char_separation);
             }
         }
 

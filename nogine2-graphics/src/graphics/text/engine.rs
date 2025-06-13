@@ -17,14 +17,13 @@ impl TextEngine {
         }
     }
 
-    pub fn add_sprite(&mut self, offset: vec2, sprite: &Sprite) {
-        dbg!(sprite.dims());
+    pub fn add_sprite(&mut self, offset: vec2, sprite: &Sprite, scale: f32) {
         self.batches.push(TextBatch {
             verts: [
                 self.cursor + offset,
-                self.cursor + offset + vec2::from(sprite.dims().yvec()),
-                self.cursor + offset + vec2::from(sprite.dims()),
-                self.cursor + offset + vec2::from(sprite.dims().xvec()),
+                self.cursor + offset + vec2::from(sprite.dims().yvec()) * scale,
+                self.cursor + offset + vec2::from(sprite.dims()) * scale,
+                self.cursor + offset + vec2::from(sprite.dims().xvec()) * scale,
             ],
             uvs: sprite.uv_rect(),
             texture: sprite.handle().clone(),
