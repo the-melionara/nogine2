@@ -45,13 +45,13 @@ fn main() {
         Graphics::draw_text(
             TextCfg {
                 origin: text_pos,
-                extents: vec2(32.0, 32.0),
+                extents: vec2(6.0, 2.0),
                 rot: 0.0,
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
             },
-            "DELTARUNE TOMORROW"
+            "DELTARUNE\nTOMORROW\nREAL NO FAKE\n1 LINK MEDIAFIRE"
         );
 
         dbg!(window.post_tick());

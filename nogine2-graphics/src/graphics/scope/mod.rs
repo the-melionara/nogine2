@@ -5,7 +5,7 @@ use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::ma
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::TextEngine, font::{Measure, TextStyle}, TextCfg}, texture::TextureHandle, CameraData, Graphics};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::TextEngine, font::{Measure, TextStyle}, TextCfg}, texture::TextureHandle, CameraData, Graphics, WHITE_TEX};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -139,26 +139,39 @@ impl RenderScope {
         };
 
         self.text_engine.reset(cfg.extents);
-        for c in text.chars() {
-            if c.is_whitespace() {
-                self.text_engine.advance_x(2.0 * char_separation + space_width);
-                continue;
-            }
+        for line in text.lines() {
+            for c in line.chars() {
+                if c.is_whitespace() {
+                    self.text_engine.advance_x(2.0 * char_separation + space_width);
+                    continue;
+                }
             
-            if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
-                self.text_engine.add_sprite(
-                    vec2::ZERO,
-                    &sprite,
-                    line_height / sprite.dims().1 as f32
-                );
+                if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
+                    self.text_engine.add_sprite(
+                        vec2::ZERO,
+                        &sprite,
+                        line_height / sprite.dims().1 as f32
+                    );
 
-                let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
-                self.text_engine.advance_x(width + char_separation);
+                    let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
+                    self.text_engine.advance_x(width + char_separation);
+                }
             }
+            self.text_engine.advance_y(line_height);
         }
 
         let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
         let material = self.material();
+
+        self.draw_rect(RectSubmitCmd {
+            pos: cfg.origin,
+            rot: cfg.rot,
+            extents: cfg.extents,
+            tint: [RGBA32::GRAY; 4],
+            texture: WHITE_TEX.get(),
+            uv_rect: Rect::IDENT
+        });
+
         self.text_engine.render(
             &mut self.batch_data,
             mat3::tf_matrix(cfg.origin, cfg.rot, cfg.scale.scale(vec2(1.0, -1.0))),
