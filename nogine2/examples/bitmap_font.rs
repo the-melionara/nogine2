@@ -1,6 +1,6 @@
 use std::{any::Any, fs::File};
 
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{text::{font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, Input}, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{text::{align::HorTextAlign, font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, Input}, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -50,6 +50,7 @@ fn main() {
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
+                hor_alignment: HorTextAlign::Left,
             },
             "DELTARUNE\nTOMORROW\nREAL NO FAKE\n1 LINK MEDIAFIRE"
         );

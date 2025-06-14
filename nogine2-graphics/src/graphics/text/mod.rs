@@ -1,7 +1,9 @@
+use align::HorTextAlign;
 use font::Font;
 use nogine2_core::math::vector2::vec2;
 
 pub mod font;
+pub mod align;
 pub(crate) mod engine;
 
 pub struct TextCfg<'a> {
@@ -11,4 +13,5 @@ pub struct TextCfg<'a> {
     pub extents: vec2,
     pub font_size: f32,
     pub font: &'a dyn Font,
+    pub hor_alignment: HorTextAlign,
 }

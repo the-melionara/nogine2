@@ -5,7 +5,7 @@ use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::ma
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::TextEngine, font::{Measure, TextStyle}, TextCfg}, texture::TextureHandle, CameraData, Graphics, WHITE_TEX};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::{Measure, TextStyle}, TextCfg}, texture::TextureHandle, CameraData, Graphics, WHITE_TEX};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -128,18 +128,22 @@ impl RenderScope {
     pub(crate) fn draw_text(&mut self, cfg: TextCfg, text: &str) {
         test_main_thread();
 
-        let line_height = cfg.font_size / self.tex_ppu;
-        let char_separation = match cfg.font.cfg().char_separation {
-            Measure::Percent(x) => x * line_height,
-            Measure::Pixels(x) => x / self.tex_ppu,
-        };
-        let space_width = match cfg.font.cfg().space_width {
-            Measure::Percent(x) => x * line_height,
-            Measure::Pixels(x) => x / self.tex_ppu,
-        };
+        let GraphicMetrics {
+            line_height,
+            char_separation,
+            space_width
+        } = GraphicMetrics::calculate(&cfg, self.tex_ppu);
 
-        self.text_engine.reset(cfg.extents);
-        for line in text.lines() {
+        self.text_engine.load(text, &cfg, self.tex_ppu);
+        let mut sanitized_text = String::new(); // MUST BE EMPTY
+        self.text_engine.swap_sanitized_text(&mut sanitized_text); // MUST BE SWAPPED BACK
+        
+        for (i, line) in sanitized_text.lines().enumerate() {
+            self.text_engine.advance_x(cfg.hor_alignment.initial_dx(
+                cfg.extents.0,
+                self.text_engine.get_line_data(i).min_width,
+            ));
+            
             for c in line.chars() {
                 if c.is_whitespace() {
                     self.text_engine.advance_x(2.0 * char_separation + space_width);
@@ -159,6 +163,8 @@ impl RenderScope {
             }
             self.text_engine.advance_y(line_height);
         }
+
+        self.text_engine.swap_sanitized_text(&mut sanitized_text); // Return the real buffer
 
         let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
         let material = self.material();
