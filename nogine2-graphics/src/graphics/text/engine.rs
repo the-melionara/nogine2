@@ -124,6 +124,12 @@ impl TextEngine {
         let mut line_end = 0;
         let mut line_data = LineData::new();
 
+        let mut word_start = 0;
+        let mut word_end = 0;
+        let mut word_width = 0.0;
+
+        let mut on_word = false;
+
         let GraphicMetrics {
             line_height,
             char_separation,
@@ -134,6 +140,12 @@ impl TextEngine {
             match c {
                 '\r' => continue, // I have little interest in DEVILISH newline characters
                 '\n' => { // I do have interest in REAL newline characters
+                    if on_word {
+                        line_end = word_end;
+                        line_data.min_width += word_width;
+                        line_data.spaceless_width += word_width;
+                    }
+                    
                     let slice = &text[line_start..line_end];
                     self.text_buf.push_str(slice);
                     self.text_buf.push('\n');
@@ -143,22 +155,55 @@ impl TextEngine {
                     line_start = i + c.len_utf8();
                     line_end = line_start;
                     line_data = LineData::new();
+                    on_word = false;
                 }
                 _ => {
-                    line_end = i + c.len_utf8();
-
                     if c.is_whitespace() {
+                        if on_word {
+                            line_end = word_end;
+                            line_data.min_width += word_width;
+                            line_data.spaceless_width += word_width;
+                            on_word = false;
+                        }
+
                         let dx = 2.0 * char_separation + space_width;
                         line_data.min_width += dx;
                     } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
+                        word_end = i + c.len_utf8();
+                        if !on_word {
+                            word_start = i;
+                            word_width = 0.0;
+                            on_word = true;
+                        }
+                        
                         let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
                         let dx = width + char_separation;
 
-                        line_data.min_width += dx;
-                        line_data.spaceless_width += dx;
+                        word_width += dx;
+
+                        // Word wrap!
+                        if cfg.word_wrap && line_data.min_width + word_width > cfg.extents.0
+                            && line_data.min_width > 0.0 // so one word lines don't get skipped
+                        {
+                            let slice = &text[line_start..line_end];
+                            self.text_buf.push_str(slice);
+                            self.text_buf.push('\n');
+
+                            self.lines_buf.push(line_data);
+
+                            line_start = word_start;
+                            line_end = word_start;
+                            line_data = LineData::new();
+                        }
                     }
                 },
             }
+        }
+
+        if word_start != word_end && on_word {
+            line_end = word_end;
+            line_data.min_width += word_width;
+            line_data.spaceless_width += word_width;
         }
 
         if line_start != line_end {

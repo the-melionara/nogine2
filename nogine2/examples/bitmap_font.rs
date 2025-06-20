@@ -26,6 +26,7 @@ fn main() {
     Graphics::set_pixels_per_unit(16.0);
 
     let mut text_pos = vec2::ZERO;
+    let mut width = 6.0;
     while window.is_open() {
         window.pre_tick(FrameSetup {
             camera: CameraData {
@@ -41,17 +42,21 @@ fn main() {
             (Key::Left, Key::Down),
             (Key::Right, Key::Up))
         ) * window.ts();
+
+        width += Input::keyboard().axis1(Key::A, Key::D) as f32 * window.ts();
         
         Graphics::draw_text(
             TextCfg {
                 origin: text_pos,
-                extents: vec2(6.0, 2.0),
+                extents: vec2(width, 2.0),
                 rot: 0.0,
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
                 hor_alignment: HorTextAlign::Left,
+                word_wrap: true,
             },
+
             "DELTARUNE\nTOMORROW\nREAL NO FAKE\n1 LINK MEDIAFIRE"
         );
 

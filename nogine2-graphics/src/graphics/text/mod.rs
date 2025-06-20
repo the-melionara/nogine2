@@ -14,4 +14,5 @@ pub struct TextCfg<'a> {
     pub font_size: f32,
     pub font: &'a dyn Font,
     pub hor_alignment: HorTextAlign,
+    pub word_wrap: bool,
 }
