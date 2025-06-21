@@ -124,6 +124,10 @@ impl TextEngine {
         let mut line_end = 0;
         let mut line_data = LineData::new();
 
+        let mut space_start = 0;
+        let mut space_end = 0;
+        let mut space_width = 0.0;
+
         let mut word_start = 0;
         let mut word_end = 0;
         let mut word_width = 0.0;
@@ -133,7 +137,7 @@ impl TextEngine {
         let GraphicMetrics {
             line_height,
             char_separation,
-            space_width
+            mut space_width
         } = GraphicMetrics::calculate(cfg, tex_ppu);
         
         for (i, c) in text.char_indices() {
@@ -142,15 +146,23 @@ impl TextEngine {
                 '\n' => { // I do have interest in REAL newline characters
                     if on_word {
                         line_end = word_end;
-                        line_data.min_width += word_width;
+                        line_data.min_width += word_width + space_width;
                         line_data.spaceless_width += word_width;
+                    } else if space_start != space_end {
+                        line_end = space_end;
+                        line_data.min_width += space_width;
                     }
+                    line_data.space_count += (space_end - space_start) as u32;
                     
                     let slice = &text[line_start..line_end];
                     self.text_buf.push_str(slice);
                     self.text_buf.push('\n');
 
                     self.lines_buf.push(line_data);
+
+                    space_end = 0;
+                    space_start = 0;
+                    space_width = 0.0;
 
                     line_start = i + c.len_utf8();
                     line_end = line_start;
@@ -160,14 +172,21 @@ impl TextEngine {
                 _ => {
                     if c.is_whitespace() {
                         if on_word {
+                            // Word and prev space should be applied
                             line_end = word_end;
-                            line_data.min_width += word_width;
+                            line_data.min_width += word_width + space_width;
                             line_data.spaceless_width += word_width;
+                            line_data.space_count += (space_end - space_start) as u32;
                             on_word = false;
+
+                            space_start = i;
+                        } else if space_start == space_end {
+                            space_start = i;
                         }
 
                         let dx = 2.0 * char_separation + space_width;
-                        line_data.min_width += dx;
+                        space_end = i + c.len_utf8();
+                        space_width += dx;
                     } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
                         word_end = i + c.len_utf8();
                         if !on_word {
@@ -189,8 +208,14 @@ impl TextEngine {
                             self.text_buf.push_str(slice);
                             self.text_buf.push('\n');
 
+                            line_data.word_wrapped = true;
+
                             self.lines_buf.push(line_data);
 
+                            space_start = 0;
+                            space_end = 0;
+                            space_width = 0.0;
+                            
                             line_start = word_start;
                             line_end = word_start;
                             line_data = LineData::new();
@@ -198,6 +223,12 @@ impl TextEngine {
                     }
                 },
             }
+        }
+
+        if space_start != space_end {
+            line_end = space_end;
+            line_data.min_width += space_width;
+            line_data.space_count += (space_end - space_start) as u32;
         }
 
         if word_start != word_end && on_word {
@@ -234,11 +265,13 @@ pub struct TextBatch {
 pub struct LineData {
     pub min_width: f32,
     pub spaceless_width: f32,
+    pub word_wrapped: bool,
+    pub space_count: u32,
 }
 
 impl LineData {
     pub const fn new() -> Self {
-        Self { min_width: 0.0, spaceless_width: 0.0 }
+        Self { min_width: 0.0, spaceless_width: 0.0, word_wrapped: false, space_count: 0 }
     }
 }
 
