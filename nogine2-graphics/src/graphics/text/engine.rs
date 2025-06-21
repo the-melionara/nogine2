@@ -184,7 +184,7 @@ impl TextEngine {
                             space_start = i;
                         }
 
-                        let dx = 2.0 * char_separation + space_width;
+                        let dx = char_separation + space_width;
                         space_end = i + c.len_utf8();
                         space_width += dx;
                     } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {

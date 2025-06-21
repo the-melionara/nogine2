@@ -19,7 +19,7 @@ impl HorTextAlign {
             (HorTextAlign::Expand, _) | (HorTextAlign::Justified, true) => {
                 let final_wordless_width = extents_width - line_data.spaceless_width;
                 let spacing = line_data.space_count as f32 * char_spacing;
-                (0.0, (final_wordless_width - spacing * 1.5) / line_data.space_count as f32)
+                (0.0, (final_wordless_width - spacing * 0.5) / line_data.space_count as f32)
             }
         }
     }

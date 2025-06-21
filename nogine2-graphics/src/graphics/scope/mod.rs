@@ -151,7 +151,7 @@ impl RenderScope {
             
             for c in line.chars() {
                 if c.is_whitespace() {
-                    self.text_engine.advance_x(2.0 * char_separation + space_width);
+                    self.text_engine.advance_x(char_separation + space_width);
                     continue;
                 }
             
