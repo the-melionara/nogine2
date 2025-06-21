@@ -139,12 +139,13 @@ impl RenderScope {
         self.text_engine.swap_sanitized_text(&mut sanitized_text); // MUST BE SWAPPED BACK
         
         for (i, line) in sanitized_text.lines().enumerate() {
-            let (dx0, space_width) = cfg.hor_alignment.dx0_and_spaces(
+            let (dx0, mut space_width) = cfg.hor_alignment.dx0_and_spaces(
                 cfg.extents.0,
                 space_width,
                 char_separation,
                 &self.text_engine.get_line_data(i)
             );
+            space_width = space_width.max(0.0);
             
             self.text_engine.advance_x(dx0);
             
