@@ -142,7 +142,6 @@ impl RenderScope {
             let (dx0, mut space_width) = cfg.hor_alignment.dx0_and_spaces(
                 cfg.extents.0,
                 space_width,
-                char_separation,
                 &self.text_engine.get_line_data(i)
             );
             space_width = space_width.max(0.0);
@@ -151,7 +150,8 @@ impl RenderScope {
             
             for c in line.chars() {
                 if c.is_whitespace() {
-                    self.text_engine.advance_x(char_separation + space_width);
+                    // No char_separation because it is already included in space_width
+                    self.text_engine.advance_x(space_width);
                     continue;
                 }
             

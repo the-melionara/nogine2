@@ -185,7 +185,7 @@ impl TextEngine {
                         }
 
                         space_end = i + c.len_utf8();
-                        space_width += char_separation + space_char_width;
+                        space_width += space_char_width;
                     } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
                         word_end = i + c.len_utf8();
                         if !on_word {
@@ -283,6 +283,7 @@ pub mod helpers {
     }
 
     impl GraphicMetrics {
+        /// `space_width` already includes `char_separation`
         pub fn calculate(cfg: &TextCfg<'_>, tex_ppu: f32) -> Self {
             let line_height = cfg.font_size / tex_ppu;
             let char_separation = match cfg.font.cfg().char_separation {
@@ -292,7 +293,7 @@ pub mod helpers {
             let space_width = match cfg.font.cfg().space_width {
                 Measure::Percent(x) => x * line_height,
                 Measure::Pixels(x) => x / tex_ppu,
-            };
+            } + char_separation;
 
             return Self { line_height, char_separation, space_width };
         }
