@@ -272,6 +272,11 @@ impl RenderScope {
     pub const fn set_cfg(&mut self, flags: RenderScopeCfgFlags) {
         self.cfg_flags = flags;
     }
+
+    /// Returns the target resolution.
+    pub fn target_res(&self) -> uvec2 {
+        self.batch_data.target_res()
+    }
     
 
     pub(crate) fn begin_render(&mut self, mut camera: CameraData, target_res: uvec2, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
@@ -302,10 +307,6 @@ impl RenderScope {
 
     fn get_scene_data(&self) -> SceneData<'_> {
         SceneData::new(&self.batch_data)
-    }
-
-    fn target_res(&self) -> uvec2 {
-        self.batch_data.target_res()
     }
 }
 

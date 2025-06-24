@@ -198,6 +198,12 @@ impl Graphics {
         graphics.active_scope.set_cfg(flags);
     }
 
+    /// Returns the target resolution.
+    pub fn target_res() -> uvec2 {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.target_res();
+    }
+
 
     pub(crate) fn init() {
         _ = WHITE_TEX.get(); // Initialize WHITE_TEX because why not
