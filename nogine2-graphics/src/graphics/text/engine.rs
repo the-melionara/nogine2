@@ -137,7 +137,7 @@ impl TextEngine {
         let GraphicMetrics {
             line_height,
             char_separation,
-            mut space_width
+            space_width: space_char_width,
         } = GraphicMetrics::calculate(cfg, tex_ppu);
         
         for (i, c) in text.char_indices() {
@@ -184,9 +184,8 @@ impl TextEngine {
                             space_start = i;
                         }
 
-                        let dx = char_separation + space_width;
                         space_end = i + c.len_utf8();
-                        space_width += dx;
+                        space_width += char_separation + space_char_width;
                     } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
                         word_end = i + c.len_utf8();
                         if !on_word {
@@ -196,12 +195,11 @@ impl TextEngine {
                         }
                         
                         let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
-                        let dx = width + char_separation;
-
-                        word_width += dx;
+                        word_width += width + char_separation;
 
                         // Word wrap!
-                        if cfg.word_wrap && line_data.min_width + word_width > cfg.extents.0
+                        if cfg.word_wrap
+                            && line_data.min_width + word_width + space_width > cfg.extents.0
                             && line_data.min_width > 0.0 // so one word lines don't get skipped
                         {
                             let slice = &text[line_start..line_end];

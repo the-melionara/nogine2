@@ -53,11 +53,11 @@ fn main() {
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
-                hor_alignment: HorTextAlign::Expand,
+                hor_alignment: HorTextAlign::Justified,
                 word_wrap: true,
             },
 
-            "DELTARUNE\nTOMORROW\nREAL NO FAKE\n1 LINK MEDIAFIRE"
+            "DELTARUNE TOMORROW REAL NO FAKE 1 LINK MEDIAFIRE"
         );
 
         dbg!(window.post_tick());
