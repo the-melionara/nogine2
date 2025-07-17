@@ -146,8 +146,6 @@ impl RenderScope {
             );
             space_width = space_width.max(0.0);
 
-            log_info!("Line {i} ({} chars): {}", line.len(), self.text_engine.get_line_data(i).min_width);
-            
             self.text_engine.advance_x(dx0);
             
             for c in line.chars() {

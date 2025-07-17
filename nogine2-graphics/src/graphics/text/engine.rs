@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use helpers::GraphicMetrics;
-use nogine2_core::math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3};
+use nogine2_core::{assert_expr, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle}, vertex::BatchVertex}};
 
@@ -120,19 +120,7 @@ impl TextEngine {
         self.lines_buf.clear();
         self.text_buf.clear();
 
-        let mut line_start = 0;
-        let mut line_end = 0;
-        let mut line_data = LineData::new();
-
-        let mut space_start = 0;
-        let mut space_end = 0;
-        let mut space_width = 0.0;
-
-        let mut word_start = 0;
-        let mut word_end = 0;
-        let mut word_width = 0.0;
-
-        let mut on_word = false;
+        let mut gear = EngineGear::new(text);
 
         let GraphicMetrics {
             line_height,
@@ -144,101 +132,36 @@ impl TextEngine {
             match c {
                 '\r' => continue, // I have little interest in DEVILISH newline characters
                 '\n' => { // I do have interest in REAL newline characters
-                    if on_word {
-                        line_end = word_end;
-                        line_data.min_width += word_width + space_width;
-                        line_data.spaceless_width += word_width;
-                    } else if space_start != space_end {
-                        line_end = space_end;
-                        line_data.min_width += space_width;
-                    }
-                    line_data.space_count += (space_end - space_start) as u32;
-                    
-                    let slice = &text[line_start..line_end];
+                    let (data, slice) = gear.pop_line();
+
                     self.text_buf.push_str(slice);
                     self.text_buf.push('\n');
-
-                    self.lines_buf.push(line_data);
-
-                    space_end = 0;
-                    space_start = 0;
-                    space_width = 0.0;
-
-                    line_start = i + c.len_utf8();
-                    line_end = line_start;
-                    line_data = LineData::new();
-                    on_word = false;
+                    self.lines_buf.push(data);
                 }
                 _ => {
                     if c.is_whitespace() {
-                        if on_word {
-                            // Word and prev space should be applied
-                            line_end = word_end;
-                            line_data.min_width += word_width + space_width;
-                            line_data.spaceless_width += word_width;
-                            line_data.space_count += (space_end - space_start) as u32;
-                            on_word = false;
-
-                            space_start = i;
-                        } else if space_start == space_end {
-                            space_start = i;
-                        }
-
-                        space_end = i + c.len_utf8();
-                        space_width += space_char_width;
+                        gear.push_space(c, i, space_char_width);
                     } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
-                        word_end = i + c.len_utf8();
-                        if !on_word {
-                            word_start = i;
-                            word_width = 0.0;
-                            on_word = true;
-                        }
-                        
                         let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
-                        word_width += width + char_separation;
+
+                        gear.push_char(c, i, width, char_separation);
 
                         // Word wrap!
-                        if cfg.word_wrap
-                            && line_data.min_width + word_width + space_width > cfg.extents.0
-                            && line_data.min_width > 0.0 // so one word lines don't get skipped
-                        {
-                            let slice = &text[line_start..line_end];
+                        if cfg.word_wrap && gear.to_be_wrapper(cfg.extents.0) {
+                            let (data, slice) = gear.wrap_line();
+                            
                             self.text_buf.push_str(slice);
                             self.text_buf.push('\n');
-
-                            line_data.word_wrapped = true;
-
-                            self.lines_buf.push(line_data);
-
-                            space_start = 0;
-                            space_end = 0;
-                            space_width = 0.0;
-                            
-                            line_start = word_start;
-                            line_end = word_start;
-                            line_data = LineData::new();
+                            self.lines_buf.push(data);
                         }
                     }
                 },
             }
         }
 
-        if space_start != space_end {
-            line_end = space_end;
-            line_data.min_width += space_width;
-            line_data.space_count += (space_end - space_start) as u32;
-        }
-
-        if word_start != word_end && on_word {
-            line_end = word_end;
-            line_data.min_width += word_width;
-            line_data.spaceless_width += word_width;
-        }
-
-        if line_start != line_end {
-            let slice = &text[line_start..line_end];
+        if let Some((data, slice)) = gear.finalize(space_char_width) {
             self.text_buf.push_str(slice);
-            self.lines_buf.push(line_data);
+            self.lines_buf.push(data);
         }
     }
 
@@ -249,6 +172,153 @@ impl TextEngine {
 
     pub fn get_line_data(&self, index: usize) -> LineData {
         self.lines_buf[index]
+    }
+}
+
+/// As I don't have a better name, I will call this a 'Gear' because it sounds rad as fuck.
+/// It's basically the thing that makes the sanitizer spin.
+struct EngineGear<'a> {
+    src: &'a str,
+    
+    line_range: (usize, usize),
+    word_range: (usize, usize),
+    space_range: (usize, usize),
+
+    line_data: LineData,
+    word_width: f32,
+    space_width: f32,
+
+    on_word: bool,
+}
+
+impl<'a> EngineGear<'a> {
+    fn new(src: &'a str) -> Self {
+        return Self {
+            src,
+            line_range: (0, 0),
+            word_range: (0, 0),
+            space_range: (0, 0),
+            line_data: LineData::new(),
+            word_width: 0.0,
+            space_width: 0.0,
+            on_word: true,
+        };
+    }
+
+    fn pop_line(&mut self) -> (LineData, &'a str) {
+        // Final turn
+        if self.on_word {
+            self.line_range.1 = self.word_range.1;
+            self.line_data.min_width += self.word_width + self.space_width;
+            self.line_data.spaceless_width += self.word_width;
+        } else if self.space_range.0 != self.space_range.1 {
+            // Case for intentional spaces before a newline
+            self.line_range.1 = self.space_range.1;
+            self.line_data.min_width += self.space_width;
+        }
+        self.line_data.space_count += self.current_spaces();
+        let result = (self.line_data, &self.src[self.line_range.0..self.line_range.1]);
+
+        // Reset line
+        self.space_range = (0, 0);
+        self.space_width = 0.0;
+
+        self.word_range = (0, 0);
+        self.word_width = 0.0;
+
+        let new_start = self.line_range.1 + '\n'.len_utf8();
+        self.line_range = (new_start, new_start);
+        self.line_data = LineData::new();
+        self.on_word = false;
+
+        return result;
+    }
+
+    fn wrap_line(&mut self) -> (LineData, &'a str) {
+        self.line_data.word_wrapped = true;
+        let slice = &self.src[self.line_range.0..self.line_range.1];
+        let data = self.line_data;
+
+        self.space_range = (0, 0);
+        self.space_width = 0.0;
+        
+        self.line_range = (self.word_range.0, self.word_range.0);
+        self.line_data = LineData::new();
+
+        return (data, slice);
+    }
+
+    fn push_space(&mut self, char: char, index: usize, space_char_width: f32) {
+        // Word and prev space should be applied
+        if self.on_word {
+            assert_expr!(self.word_range.1 > self.line_range.1);
+            
+            self.line_range.1 = self.word_range.1;
+            self.line_data.min_width += self.word_width + self.space_width;
+            self.line_data.spaceless_width += self.word_width;
+            self.line_data.space_count += self.current_spaces();
+            
+            self.word_range = (0, 0);
+            self.word_width = 0.0;
+        }
+
+        self.space_width += space_char_width;
+        self.space_range = (
+            // For intentional spaces at the start of a line
+            if self.on_word || self.current_spaces() == 0 {
+                index
+            } else {
+                self.space_range.0
+            },
+            index + char.len_utf8(),
+        );
+        self.on_word = false;
+    }
+
+    fn push_char(&mut self, char: char, index: usize, width: f32, char_separation: f32) {
+        self.word_range = (
+            if !self.on_word {
+                self.word_width = 0.0;
+                index
+            } else {
+                self.word_range.0
+            },
+            index + char.len_utf8(),
+        );
+        
+        self.word_width += width + char_separation;
+        self.on_word = true;
+    }
+
+    fn finalize(&mut self, space_width: f32) -> Option<(LineData, &'a str)> {
+        let current_spaces = self.current_spaces();
+        if current_spaces != 0 {
+            self.line_range.1 = self.space_range.1;
+            self.line_data.min_width += space_width;
+        }
+        self.line_data.space_count += current_spaces;
+
+        if self.word_range.0 != self.word_range.1 && self.on_word {
+            self.line_range.1 = self.word_range.1;
+            self.line_data.min_width += self.word_width;
+            self.line_data.spaceless_width += self.word_width;
+        }
+
+        if self.line_range.0 != self.line_range.1 {
+            let slice = &self.src[self.line_range.0..self.line_range.1];
+            return Some((self.line_data, slice));
+        }
+
+        return None;
+    }
+
+    fn to_be_wrapper(&self, extents_width: f32) -> bool {
+        return self.line_data.min_width + self.word_width + self.space_width > extents_width
+            && self.line_data.min_width > 0.0; // so one word lines don't get skipped
+    }
+
+    #[inline] fn current_spaces(&self) -> u32 {
+        (self.space_range.1 - self.space_range.0) as u32
     }
 }
 

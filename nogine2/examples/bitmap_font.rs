@@ -27,7 +27,6 @@ fn main() {
 
     let mut text_pos = vec2::ZERO;
     let mut width = 6.0;
-    let mut ruler_origin = None;
     
     while window.is_open() {
         window.pre_tick(FrameSetup {
@@ -55,30 +54,12 @@ fn main() {
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
-                hor_alignment: HorTextAlign::Left,
+                hor_alignment: HorTextAlign::Justified,
                 word_wrap: true,
             },
 
             "DELTARUNE TOMORROW REAL NO FAKE 1 LINK MEDIAFIRE"
         );
-
-        match ruler_origin {
-            Some(origin) => {
-                let target = screen_to_world_pos(Input::mouse().pos());
-                Graphics::draw_line(origin, target, [RGBA32::RED; 2]);
-
-                log_info!("Ruler: {}", origin.dist_to(target));
-
-                if Input::mouse().button_released(Button::Left) {
-                    ruler_origin = None;
-                }
-            },
-            None => {
-                if Input::mouse().button_pressed(Button::Left) {
-                    ruler_origin = Some(screen_to_world_pos(Input::mouse().pos()));
-                }
-            },
-        }
 
         dbg!(window.post_tick());
     }
