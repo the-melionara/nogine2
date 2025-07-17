@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bitflags::bitflags;
-use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
+use nogine2_core::{assert_expr, log_info, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
@@ -145,6 +145,8 @@ impl RenderScope {
                 &self.text_engine.get_line_data(i)
             );
             space_width = space_width.max(0.0);
+
+            log_info!("Line {i} ({} chars): {}", line.len(), self.text_engine.get_line_data(i).min_width);
             
             self.text_engine.advance_x(dx0);
             

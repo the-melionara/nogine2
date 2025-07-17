@@ -1,6 +1,6 @@
 use std::{any::Any, fs::File};
 
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::HorTextAlign, font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::HorTextAlign, font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -55,7 +55,7 @@ fn main() {
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
-                hor_alignment: HorTextAlign::Justified,
+                hor_alignment: HorTextAlign::Left,
                 word_wrap: true,
             },
 
@@ -64,11 +64,10 @@ fn main() {
 
         match ruler_origin {
             Some(origin) => {
-                Graphics::draw_line(
-                    origin,
-                    screen_to_world_pos(Input::mouse().pos()),
-                    [RGBA32::RED; 2],
-                );
+                let target = screen_to_world_pos(Input::mouse().pos());
+                Graphics::draw_line(origin, target, [RGBA32::RED; 2]);
+
+                log_info!("Ruler: {}", origin.dist_to(target));
 
                 if Input::mouse().button_released(Button::Left) {
                     ruler_origin = None;
