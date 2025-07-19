@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use bitflags::bitflags;
-use nogine2_core::{assert_expr, log_info, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
+use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::{Measure, TextStyle}, TextCfg}, texture::TextureHandle, CameraData, Graphics, WHITE_TEX};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::TextStyle, TextCfg}, texture::TextureHandle, CameraData, Graphics, WHITE_TEX};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -138,6 +138,15 @@ impl RenderScope {
         let mut sanitized_text = String::new(); // MUST BE EMPTY
         self.text_engine.swap_sanitized_text(&mut sanitized_text); // MUST BE SWAPPED BACK
         
+        let (dy0, mut line_separation) = cfg.ver_alignment.dy0_and_spaces(
+            cfg.extents.1,
+            line_height,
+            self.text_engine.get_line_count(),
+        );
+
+        line_separation = line_separation.max(0.0);
+
+        self.text_engine.advance_y(dy0);
         for (i, line) in sanitized_text.lines().enumerate() {
             let (dx0, mut space_width) = cfg.hor_alignment.dx0_and_spaces(
                 cfg.extents.0,
@@ -166,7 +175,7 @@ impl RenderScope {
                     self.text_engine.advance_x(width + char_separation);
                 }
             }
-            self.text_engine.advance_y(line_height);
+            self.text_engine.advance_y(line_separation);
         }
 
         self.text_engine.swap_sanitized_text(&mut sanitized_text); // Return the real buffer

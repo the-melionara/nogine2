@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::RwLock};
+use std::sync::RwLock;
 
 use crate::crash;
 

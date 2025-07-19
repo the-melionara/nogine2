@@ -1,6 +1,6 @@
 use std::{any::Any, fs::File};
 
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::HorTextAlign, font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::{HorTextAlign, VerTextAlign}, font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -26,7 +26,7 @@ fn main() {
     Graphics::set_pixels_per_unit(16.0);
 
     let mut text_pos = vec2::ZERO;
-    let mut width = 6.0;
+    let mut extents = vec2(6.0, 2.0);
     
     while window.is_open() {
         window.pre_tick(FrameSetup {
@@ -44,17 +44,21 @@ fn main() {
             (Key::Right, Key::Up))
         ) * window.ts();
 
-        width += Input::keyboard().axis1(Key::A, Key::D) as f32 * window.ts();
+        extents += vec2::from(Input::keyboard().axis2(
+            (Key::A, Key::S),
+            (Key::D, Key::W)
+        )) * window.ts();
         
         Graphics::draw_text(
             TextCfg {
                 origin: text_pos,
-                extents: vec2(width, 2.0),
+                extents,
                 rot: 0.0,
                 font_size: 9.0,
                 font: &font,
                 scale: vec2::ONE,
-                hor_alignment: HorTextAlign::Justified,
+                hor_alignment: HorTextAlign::Center,
+                ver_alignment: VerTextAlign::Center,
                 word_wrap: true,
             },
 

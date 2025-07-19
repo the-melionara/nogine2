@@ -1,4 +1,4 @@
-use align::HorTextAlign;
+use align::{HorTextAlign, VerTextAlign};
 use font::Font;
 use nogine2_core::math::vector2::vec2;
 
@@ -14,5 +14,6 @@ pub struct TextCfg<'a> {
     pub font_size: f32,
     pub font: &'a dyn Font,
     pub hor_alignment: HorTextAlign,
+    pub ver_alignment: VerTextAlign,
     pub word_wrap: bool,
 }

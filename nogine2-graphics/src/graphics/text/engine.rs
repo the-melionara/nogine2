@@ -173,6 +173,10 @@ impl TextEngine {
     pub fn get_line_data(&self, index: usize) -> LineData {
         self.lines_buf[index]
     }
+
+    pub fn get_line_count(&self) -> usize {
+        self.lines_buf.len()
+    }
 }
 
 /// As I don't have a better name, I will call this a 'Gear' because it sounds rad as fuck.
