@@ -23,6 +23,10 @@ impl From<GLFWbool> for bool {
 }
 
 pub const GLFW_CLIENT_API: c_int = 0x00022001;
+pub const GLFW_CONTEXT_VERSION_MAJOR: c_int = 0x00022002;
+pub const GLFW_CONTEXT_VERSION_MINOR: c_int = 0x00022003;
+pub const GLFW_OPENGL_PROFILE: c_int = 0x00022008;
+pub const GLFW_OPENGL_CORE_PROFILE: c_int = 0x00032001;
 
 pub const GLFW_NO_API: c_int = 0;
 

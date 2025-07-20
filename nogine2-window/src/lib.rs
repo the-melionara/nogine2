@@ -1,4 +1,4 @@
-use glfw::{glfwInit, glfwSetErrorCallback, glfwTerminate, GLFWbool};
+use glfw::{glfwInit, glfwSetErrorCallback, glfwTerminate, glfwWindowHint, GLFWbool, GLFW_CONTEXT_VERSION_MAJOR, GLFW_CONTEXT_VERSION_MINOR, GLFW_OPENGL_CORE_PROFILE, GLFW_OPENGL_PROFILE};
 use nogine2_core::{crash, log_info};
 use window::{Window, POST_TICK_EVS, PRE_TICK_EVS};
 
@@ -13,6 +13,10 @@ fn init_glfw() {
         if glfwInit() != GLFWbool::TRUE {
             crash!("Couldn't initialize GLFW!");
         }
+
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         glfwSetErrorCallback(glfw_callbacks::error_callback);
         log_info!("NOGINE2: GLFW initialized")
