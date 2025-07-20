@@ -20,11 +20,11 @@ pub trait RichTextFunction {
     /// `out_quads` is prefilled with the data in `ìn_quads`.
     fn draw(
         &self,
-        args: Split<'_, char>,
-        in_quads: &[CharQuad],
-        out_quads: &mut Vec<CharQuad>,
-        ctx: &RichTextContext
-    );
+        _args: Split<'_, char>,
+        _in_quads: &[CharQuad],
+        _out_quads: &mut Vec<CharQuad>,
+        _ctx: &RichTextContext
+    ) { }
 
     /// Defines the new text style to be used with the characters.
     fn new_style(&self, old_style: TextStyle) -> TextStyle {
