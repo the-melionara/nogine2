@@ -264,6 +264,9 @@ impl<'a> EngineGear<'a> {
             
             self.word_range = (0, 0);
             self.word_width = 0.0;
+
+            self.space_range = (0, 0);
+            self.space_width = 0.0;
         }
 
         self.space_width += space_char_width;

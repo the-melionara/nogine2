@@ -62,7 +62,7 @@ fn main() {
                 word_wrap: true,
             },
 
-            "DELTARUNE TOMORROW REAL NO FAKE 1 LINK MEDIAFIRE"
+            "DELTARUNE TOMORROW REAL\nNO FAKE 1 LINK MEDIAFIRE"
         );
 
         dbg!(window.post_tick());
