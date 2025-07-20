@@ -4,6 +4,7 @@ use nogine2_core::math::vector2::vec2;
 
 pub mod font;
 pub mod align;
+pub mod rich;
 pub(crate) mod engine;
 
 pub struct TextCfg<'a> {
