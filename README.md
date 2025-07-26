@@ -8,6 +8,7 @@ Nogine2 is **HIGHLY EXPERIMENTAL AND NOT BATTLE TESTED**. For an even more unusa
 - [ ] Rich text
 - [ ] Stateful text option
 - [ ] Text in UI
+- [ ] Texture uniforms
 
 ## Audio
 - [ ] Mono audio
