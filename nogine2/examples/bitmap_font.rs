@@ -1,6 +1,6 @@
-use std::{any::Any, fs::File};
+use std::{any::Any, fs::File, str::Split};
 
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::{HorTextAlign, VerTextAlign}, font::{BitmapFont, FontCfg, Measure, TextStyle}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::{HorTextAlign, VerTextAlign}, font::{bitmap::BitmapFont, FontCfg, Measure, TextStyle}, rich::{CharQuad, RichTextContext, RichTextFunction}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -13,7 +13,7 @@ fn main() {
         }
     ));
     let atlas = SpriteAtlas::new(texture, uvec2(10, 9));
-    let font = BitmapFont::new(
+    let mut font = BitmapFont::new(
         atlas,
         "0123456789.,:;'()[]{}<>?!¿¡_*+-=/#%@~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚÚáéíóúüÑñ",
         FontCfg {
@@ -22,6 +22,7 @@ fn main() {
             char_separation: Measure::Percent(1.0 / 9.0),
         }
     );
+    font.add_rich_function(Box::new(RTFRed));
 
     Graphics::set_pixels_per_unit(16.0);
 
@@ -60,11 +61,34 @@ fn main() {
                 hor_alignment: HorTextAlign::Center,
                 ver_alignment: VerTextAlign::Center,
                 word_wrap: true,
+                rich_text: true,
             },
 
-            "DELTARUNE TOMORROW REAL\nNO FAKE 1 LINK MEDIAFIRE"
+            "DELTARUNE <red>TOMORROW</red> REAL\nNO FAKE 1 LINK MEDIAFIRE"
         );
 
         dbg!(window.post_tick());
+    }
+}
+
+struct RTFRed;
+impl RichTextFunction for RTFRed {
+    fn get_tag_name(&self) -> &'static str {
+        "red"
+    }
+
+    fn draw(
+        &self,
+        _args: Split<'_, char>,
+        _in_quads: &[CharQuad],
+        out_quads: &mut Vec<CharQuad>,
+        _ctx: &RichTextContext
+    ) {
+        for q in out_quads {
+            q.lu.color = RGBA32::RED;
+            q.ld.color = RGBA32::RED;
+            q.ru.color = RGBA32::RED;
+            q.rd.color = RGBA32::RED;
+        }
     }
 }

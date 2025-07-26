@@ -10,9 +10,6 @@ pub trait RichTextFunction {
     /// Returns the name of the tag associated with this function.
     fn get_tag_name(&self) -> &'static str;
 
-    /// Defines whether `draw` is executed only once (`true`) or per character (`false`).
-    fn is_event(&self) -> bool { false }
-
     /// Defines whether `draw` is executed on spaces.
     fn apply_to_whitespaces(&self) -> bool { false }
     

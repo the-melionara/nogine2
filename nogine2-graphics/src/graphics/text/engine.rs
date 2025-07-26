@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::{iter::Peekable, str::CharIndices, sync::Arc};
 
 use helpers::GraphicMetrics;
-use nogine2_core::{assert_expr, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
+use nogine2_core::{assert_expr, crash, log_warn, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle}, vertex::BatchVertex}};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle, TextureWrapping}, vertex::BatchVertex}};
 
-use super::{font::TextStyle, TextCfg};
+use super::{font::{Font, TextStyle}, TextCfg};
 
 pub struct TextEngine {
     cursor: vec2,
@@ -17,6 +17,9 @@ pub struct TextEngine {
     batches: Vec<TextBatch>,
     text_buf: String,
     lines_buf: Vec<LineData>,
+
+    rtf_stack: Vec<RTCmd>,
+    rtf_args_stack: String,
 }
 
 impl TextEngine {
@@ -29,6 +32,9 @@ impl TextEngine {
             batches: Vec::new(),
             text_buf: String::new(),
             lines_buf: Vec::new(),
+
+            rtf_stack: Vec::new(),
+            rtf_args_stack: String::new(),
         }
     }
 
@@ -119,8 +125,14 @@ impl TextEngine {
 
         self.lines_buf.clear();
         self.text_buf.clear();
+        self.rtf_clear();
 
-        let mut gear = EngineGear::new(text);
+        let mut lines_swap = Vec::new();
+        let mut text_swap = String::new();
+
+        std::mem::swap(&mut self.text_buf, &mut text_swap);
+        std::mem::swap(&mut self.lines_buf, &mut lines_swap);
+        let mut gear = EngineGear::new(text, &mut text_swap, &mut lines_swap);
 
         let GraphicMetrics {
             line_height,
@@ -128,41 +140,58 @@ impl TextEngine {
             space_width: space_char_width,
         } = GraphicMetrics::calculate(cfg, tex_ppu);
         
-        for (i, c) in text.char_indices() {
+        let mut escaped_tag = false;
+        let mut iter = text.char_indices().peekable();
+        while let Some((i, c)) = iter.next() {
             match c {
                 '\r' => continue, // I have little interest in DEVILISH newline characters
-                '\n' => { // I do have interest in REAL newline characters
-                    let (data, slice) = gear.pop_line();
-
-                    self.text_buf.push_str(slice);
-                    self.text_buf.push('\n');
-                    self.lines_buf.push(data);
-                }
+                '\n' => gear.pop_line(), // I do have interest in REAL newline characters
+                _ if c.is_whitespace() => gear.push_space(c, i, space_char_width),
                 _ => {
-                    if c.is_whitespace() {
-                        gear.push_space(c, i, space_char_width);
-                    } else if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
+                    // Rich text tag
+                    if cfg.rich_text && c == '<' && !escaped_tag {
+                        let mut closing = false;
+                        match iter.peek().copied() {
+                            Some((_, '<')) => { // Escaped '<'
+                                escaped_tag = true;
+                                continue;
+                            }, 
+                            Some((_, '/')) => { // Closing tag
+                                closing = true;
+                                iter.next();
+                            }
+                            _ => {}
+                        }
+
+                        if let Some((name, args)) = process_tag(text, &mut iter, closing, i, c) {
+                            self.rtf_push(name, args, cfg.font);
+                        }
+
+                        if closing {
+                            self.rtf_pop();
+                        }
+
+                        continue;
+                    }
+                    escaped_tag = false;
+
+                    if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
                         let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
 
                         gear.push_char(c, i, width, char_separation);
 
                         // Word wrap!
                         if cfg.word_wrap && gear.to_be_wrapper(cfg.extents.0) {
-                            let (data, slice) = gear.wrap_line();
-                            
-                            self.text_buf.push_str(slice);
-                            self.text_buf.push('\n');
-                            self.lines_buf.push(data);
+                            gear.wrap_line();
                         }
                     }
                 },
             }
         }
 
-        if let Some((data, slice)) = gear.finalize(space_char_width) {
-            self.text_buf.push_str(slice);
-            self.lines_buf.push(data);
-        }
+        gear.finalize(space_char_width);
+        std::mem::swap(&mut self.text_buf, &mut text_swap);
+        std::mem::swap(&mut self.lines_buf, &mut lines_swap);
     }
 
     /// This method exists EXCLUSIVELY BECAUSE I HATE THE BORROW CHECKER.
@@ -177,12 +206,91 @@ impl TextEngine {
     pub fn get_line_count(&self) -> usize {
         self.lines_buf.len()
     }
+
+    fn rtf_clear(&mut self) {
+        self.rtf_stack.clear();
+        self.rtf_args_stack.clear();
+    }
+
+    fn rtf_push(&mut self, name: &str, args: &str, font: &dyn Font) {
+        let rtfs = font.get_rich_functions();
+        let Some(index) = rtfs.iter().position(|x| x.get_tag_name().trim() == name.trim()) else {
+            log_warn!("{name} is not a recognized rich text function.");
+            return;
+        };
+
+        self.rtf_stack.push(RTCmd { index: Some(index), char_index: self.text_buf.len() });
+        self.rtf_args_stack.push_str(args);
+        self.rtf_args_stack.push('\n');
+    }
+
+    fn rtf_pop(&mut self) {
+        self.rtf_stack.push(RTCmd { index: None, char_index: self.text_buf.len() });
+        self.rtf_args_stack.push('\n');
+    }
+}
+
+fn process_tag<'a>(
+    src: &'a str,
+    iter: &mut Peekable<CharIndices<'_>>,
+    closing_tag: bool,
+    i: usize,
+    c: char
+) -> Option<(&'a str, &'a str)> {
+    if closing_tag {
+        while iter.next_if(|(_, c)| *c != '>').is_some() {}
+        iter.next();
+        return None;
+    }
+    
+    // Name
+    let mut name_start = i + c.len_utf8();
+    while let Some((i, _)) = iter.next_if(|(_, c)| c.is_whitespace()) {
+        name_start = i;
+    }
+
+    let mut name_end = name_start;
+    while let Some((i, c)) = iter.next_if(|(_, c)| !matches!(c, '=' | '>')) {
+        if c == '\n' {
+            return None;
+        }
+        
+        name_end = i + c.len_utf8();
+    }
+    let name = &src[name_start..name_end];
+
+    // Midpoint
+    while iter.next_if(|(_, c)| c.is_whitespace()).is_some() {}
+    let args_start = match iter.next() {
+        Some((_, '>')) => return Some((name, "")),
+        Some((i, '=')) => i + '='.len_utf8(),
+        Some(_) => crash!("SHOULDN'T HAPPEN 1997"),
+        None => return None,
+    };
+
+    // Args
+    let mut args_end = args_start;
+    while let Some((i, c)) = iter.next_if(|(_, c)| !matches!(c, '>' | '\n')) {
+        args_end = i + c.len_utf8();
+    }
+    let args = &src[args_start..args_end];
+
+    iter.next();
+    return Some((name, args));
+}
+
+struct RTCmd {
+    /// `None` for pop
+    index: Option<usize>,
+    char_index: usize,
 }
 
 /// As I don't have a better name, I will call this a 'Gear' because it sounds rad as fuck.
 /// It's basically the thing that makes the sanitizer spin.
 struct EngineGear<'a> {
     src: &'a str,
+    text_buf: &'a mut String,
+    lines_buf: &'a mut Vec<LineData>,
     
     line_range: (usize, usize),
     word_range: (usize, usize),
@@ -196,9 +304,11 @@ struct EngineGear<'a> {
 }
 
 impl<'a> EngineGear<'a> {
-    fn new(src: &'a str) -> Self {
+    fn new(src: &'a str, text_buf: &'a mut String, lines_buf: &'a mut Vec<LineData>) -> Self {
         return Self {
             src,
+            text_buf,
+            lines_buf,
             line_range: (0, 0),
             word_range: (0, 0),
             space_range: (0, 0),
@@ -209,7 +319,7 @@ impl<'a> EngineGear<'a> {
         };
     }
 
-    fn pop_line(&mut self) -> (LineData, &'a str) {
+    fn pop_line(&mut self) {
         // Final turn
         if self.on_word {
             self.line_range.1 = self.word_range.1;
@@ -221,7 +331,8 @@ impl<'a> EngineGear<'a> {
             self.line_data.min_width += self.space_width;
         }
         self.line_data.space_count += self.current_spaces();
-        let result = (self.line_data, &self.src[self.line_range.0..self.line_range.1]);
+        let slice = &self.src[self.line_range.0..self.line_range.1];
+        let data = self.line_data;
 
         // Reset line
         self.space_range = (0, 0);
@@ -235,10 +346,13 @@ impl<'a> EngineGear<'a> {
         self.line_data = LineData::new();
         self.on_word = false;
 
-        return result;
+        // Apply
+        self.text_buf.push_str(slice);
+        self.text_buf.push('\n');
+        self.lines_buf.push(data);
     }
 
-    fn wrap_line(&mut self) -> (LineData, &'a str) {
+    fn wrap_line(&mut self) {
         self.line_data.word_wrapped = true;
         let slice = &self.src[self.line_range.0..self.line_range.1];
         let data = self.line_data;
@@ -249,7 +363,9 @@ impl<'a> EngineGear<'a> {
         self.line_range = (self.word_range.0, self.word_range.0);
         self.line_data = LineData::new();
 
-        return (data, slice);
+        self.text_buf.push_str(slice);
+        self.text_buf.push('\n');
+        self.lines_buf.push(data);
     }
 
     fn push_space(&mut self, char: char, index: usize, space_char_width: f32) {
@@ -297,7 +413,22 @@ impl<'a> EngineGear<'a> {
         self.on_word = true;
     }
 
-    fn finalize(&mut self, space_width: f32) -> Option<(LineData, &'a str)> {
+    fn apply_word(&mut self) {
+        if self.on_word {
+            self.line_range.1 = self.word_range.1;
+            self.line_data.min_width += self.word_width + self.space_width;
+            self.line_data.spaceless_width += self.word_width;
+            self.line_data.space_count += self.current_spaces();
+            
+            self.word_range = (0, 0);
+            self.word_width = 0.0;
+
+            self.space_range = (0, 0);
+            self.space_width = 0.0;
+        }
+    }
+
+    fn finalize(&mut self, space_width: f32) {
         let current_spaces = self.current_spaces();
         if current_spaces != 0 {
             self.line_range.1 = self.space_range.1;
@@ -313,10 +444,9 @@ impl<'a> EngineGear<'a> {
 
         if self.line_range.0 != self.line_range.1 {
             let slice = &self.src[self.line_range.0..self.line_range.1];
-            return Some((self.line_data, slice));
+            self.text_buf.push_str(slice);
+            self.lines_buf.push(self.line_data);
         }
-
-        return None;
     }
 
     fn to_be_wrapper(&self, extents_width: f32) -> bool {

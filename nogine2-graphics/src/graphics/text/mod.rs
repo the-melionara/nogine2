@@ -17,4 +17,5 @@ pub struct TextCfg<'a> {
     pub hor_alignment: HorTextAlign,
     pub ver_alignment: VerTextAlign,
     pub word_wrap: bool,
+    pub rich_text: bool,
 }

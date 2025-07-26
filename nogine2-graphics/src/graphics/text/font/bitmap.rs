@@ -16,7 +16,10 @@ impl BitmapFont {
     /// Creates a new BitmapFont from a `SpriteAtlas` and a `charset`.
     /// For layout information, see the docs of `BitmapFont::set_style`.
     pub fn new(atlas: SpriteAtlas, charset: &str, cfg: FontCfg) -> Self {
-        let mut res = Self { styles: HashMap::new(), cfg, rtf: Vec::new() };
+        let mut res = Self { styles: HashMap::new(), cfg, rtf: vec![
+            Box::new(RTFBold),
+            Box::new(RTFItalic),
+        ] };
         res.set_style(TextStyle::Regular, atlas, charset);
         return res;
     }
@@ -47,6 +50,14 @@ impl BitmapFont {
         }
 
         self.styles.insert(style, res);
+    }
+
+    pub fn clear_rich_functions(&mut self) {
+        self.rtf.clear();
+    }
+
+    pub fn add_rich_function(&mut self, f: Box<dyn RichTextFunction>) {
+        self.rtf.push(f);
     }
 
     fn get_styled_char(&self, style: TextStyle, char: char) -> Option<Sprite> {
@@ -124,4 +135,32 @@ impl Font for BitmapFont {
 struct StyledAtlasData {
     atlas: SpriteAtlas,
     rects: HashMap<char, IRect>,
+}
+
+struct RTFBold;
+impl RichTextFunction for RTFBold {
+    fn get_tag_name(&self) -> &'static str {
+        "b"
+    }
+
+    fn new_style(&self, old_style: TextStyle) -> TextStyle {
+        match old_style {
+            TextStyle::Italic => TextStyle::BoldItalic,
+            _ => TextStyle::Bold,
+        }
+    }
+}
+
+struct RTFItalic;
+impl RichTextFunction for RTFItalic {
+    fn get_tag_name(&self) -> &'static str {
+        "i"
+    }
+
+    fn new_style(&self, old_style: TextStyle) -> TextStyle {
+        match old_style {
+            TextStyle::Bold => TextStyle::BoldItalic,
+            _ => TextStyle::Italic,
+        }
+    }
 }
