@@ -189,7 +189,7 @@ impl TextEngine {
             }
         }
 
-        gear.finalize(space_char_width);
+        gear.finalize();
         std::mem::swap(&mut self.text_buf, &mut text_swap);
         std::mem::swap(&mut self.lines_buf, &mut lines_swap);
     }
@@ -292,7 +292,6 @@ struct EngineGear<'a> {
     text_buf: &'a mut String,
     lines_buf: &'a mut Vec<LineData>,
     
-    line_range: (usize, usize),
     word_range: (usize, usize),
     space_range: (usize, usize),
 
@@ -309,7 +308,6 @@ impl<'a> EngineGear<'a> {
             src,
             text_buf,
             lines_buf,
-            line_range: (0, 0),
             word_range: (0, 0),
             space_range: (0, 0),
             line_data: LineData::new(),
@@ -320,69 +318,30 @@ impl<'a> EngineGear<'a> {
     }
 
     fn pop_line(&mut self) {
-        // Final turn
-        if self.on_word {
-            self.line_range.1 = self.word_range.1;
-            self.line_data.min_width += self.word_width + self.space_width;
-            self.line_data.spaceless_width += self.word_width;
-        } else if self.space_range.0 != self.space_range.1 {
-            // Case for intentional spaces before a newline
-            self.line_range.1 = self.space_range.1;
-            self.line_data.min_width += self.space_width;
-        }
-        self.line_data.space_count += self.current_spaces();
-        let slice = &self.src[self.line_range.0..self.line_range.1];
-        let data = self.line_data;
+        self.push_batch();
+        self.lines_buf.push(self.line_data);
 
-        // Reset line
-        self.space_range = (0, 0);
-        self.space_width = 0.0;
-
-        self.word_range = (0, 0);
-        self.word_width = 0.0;
-
-        let new_start = self.line_range.1 + '\n'.len_utf8();
-        self.line_range = (new_start, new_start);
         self.line_data = LineData::new();
         self.on_word = false;
-
-        // Apply
-        self.text_buf.push_str(slice);
+        
         self.text_buf.push('\n');
-        self.lines_buf.push(data);
     }
 
     fn wrap_line(&mut self) {
         self.line_data.word_wrapped = true;
-        let slice = &self.src[self.line_range.0..self.line_range.1];
-        let data = self.line_data;
+        self.lines_buf.push(self.line_data);
 
+        self.line_data = LineData::new();
         self.space_range = (0, 0);
         self.space_width = 0.0;
         
-        self.line_range = (self.word_range.0, self.word_range.0);
-        self.line_data = LineData::new();
-
-        self.text_buf.push_str(slice);
         self.text_buf.push('\n');
-        self.lines_buf.push(data);
     }
 
     fn push_space(&mut self, char: char, index: usize, space_char_width: f32) {
         // Word and prev space should be applied
         if self.on_word {
-            assert_expr!(self.word_range.1 > self.line_range.1);
-            
-            self.line_range.1 = self.word_range.1;
-            self.line_data.min_width += self.word_width + self.space_width;
-            self.line_data.spaceless_width += self.word_width;
-            self.line_data.space_count += self.current_spaces();
-            
-            self.word_range = (0, 0);
-            self.word_width = 0.0;
-
-            self.space_range = (0, 0);
-            self.space_width = 0.0;
+            self.push_batch();
         }
 
         self.space_width += space_char_width;
@@ -413,38 +372,32 @@ impl<'a> EngineGear<'a> {
         self.on_word = true;
     }
 
-    fn apply_word(&mut self) {
-        if self.on_word {
-            self.line_range.1 = self.word_range.1;
-            self.line_data.min_width += self.word_width + self.space_width;
-            self.line_data.spaceless_width += self.word_width;
+    fn push_batch(&mut self) -> bool {
+        let mut res = false;
+        if self.space_range.0 != self.space_range.1 {
+            self.text_buf.push_str(&self.src[self.space_range.0..self.space_range.1]);
             self.line_data.space_count += self.current_spaces();
-            
-            self.word_range = (0, 0);
-            self.word_width = 0.0;
+            self.line_data.min_width += self.space_width;
 
-            self.space_range = (0, 0);
             self.space_width = 0.0;
+            self.space_range = (0, 0);
+            res = true;
         }
-    }
 
-    fn finalize(&mut self, space_width: f32) {
-        let current_spaces = self.current_spaces();
-        if current_spaces != 0 {
-            self.line_range.1 = self.space_range.1;
-            self.line_data.min_width += space_width;
-        }
-        self.line_data.space_count += current_spaces;
-
-        if self.word_range.0 != self.word_range.1 && self.on_word {
-            self.line_range.1 = self.word_range.1;
+        if self.word_range.0 != self.word_range.1 {
+            self.text_buf.push_str(&self.src[self.word_range.0..self.word_range.1]);
             self.line_data.min_width += self.word_width;
             self.line_data.spaceless_width += self.word_width;
-        }
 
-        if self.line_range.0 != self.line_range.1 {
-            let slice = &self.src[self.line_range.0..self.line_range.1];
-            self.text_buf.push_str(slice);
+            self.word_width = 0.0;
+            self.word_range = (0, 0);
+            res = true;
+        }
+        return res;
+    }
+
+    fn finalize(&mut self) {
+        if self.push_batch() {
             self.lines_buf.push(self.line_data);
         }
     }
