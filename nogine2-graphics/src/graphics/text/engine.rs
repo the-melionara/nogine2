@@ -3,7 +3,7 @@ use std::{iter::Peekable, str::CharIndices, sync::Arc};
 use helpers::GraphicMetrics;
 use nogine2_core::{crash, log_warn, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle}, vertex::BatchVertex}};
+use crate::{colors::rgba::RGBA32, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::TextureHandle, vertex::BatchVertex}};
 
 use super::{font::{Font, TextStyle}, rich::CharQuad, TextCfg};
 
