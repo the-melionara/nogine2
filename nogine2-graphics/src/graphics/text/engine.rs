@@ -1,11 +1,11 @@
 use std::{iter::Peekable, str::CharIndices, sync::Arc};
 
 use helpers::GraphicMetrics;
-use nogine2_core::{assert_expr, crash, log_warn, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
+use nogine2_core::{crash, log_warn, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle, TextureWrapping}, vertex::BatchVertex}};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::{sprite::Sprite, TextureHandle}, vertex::BatchVertex}};
 
-use super::{font::{Font, TextStyle}, TextCfg};
+use super::{font::{Font, TextStyle}, rich::CharQuad, TextCfg};
 
 pub struct TextEngine {
     cursor: vec2,
@@ -38,25 +38,37 @@ impl TextEngine {
         }
     }
 
-    pub fn add_sprite(&mut self, offset: vec2, sprite: &Sprite, scale: f32) {
-        let rect = Rect::from_points(
-            offset,
-            offset + vec2::from(sprite.dims()) * scale,
-        );
-        
-        // THIS MAY NEED REVISIONS!!!!!!!
-        // if rect.left() < 0.0 || rect.right() > self.extents.0 ||
-        //     rect.down() < 0.0 || rect.up() > self.extents.1 {
-        //     return;
-        // }
-        
-        self.batches.push(TextBatch {
-            verts: [rect.ld(), rect.lu(), rect.ru(), rect.rd()],
-            offset: self.cursor - rect.size().yvec(),
-            uvs: sprite.uv_rect(),
-            texture: sprite.handle().clone(),
-        });
+    pub fn add_quads(&mut self, quads: &[CharQuad], height: f32) {
+        for q in quads {
+            self.batches.push(TextBatch {
+                verts: [q.ld.pos, q.lu.pos, q.ru.pos, q.rd.pos],
+                cols: [q.ld.color, q.lu.color, q.ru.color, q.rd.color],
+                offset: self.cursor - vec2::up(height),
+                uvs: q.sprite.uv_rect(),
+                texture: q.sprite.handle().clone(),
+            });
+        }
     }
+
+    // pub fn add_sprite(&mut self, offset: vec2, sprite: &Sprite, scale: f32) {
+    //     let rect = Rect::from_points(
+    //         offset,
+    //         offset + vec2::from(sprite.dims()) * scale,
+    //     );
+        
+    //     // THIS MAY NEED REVISIONS!!!!!!!
+    //     // if rect.left() < 0.0 || rect.right() > self.extents.0 ||
+    //     //     rect.down() < 0.0 || rect.up() > self.extents.1 {
+    //     //     return;
+    //     // }
+        
+    //     self.batches.push(TextBatch {
+    //         verts: [rect.ld(), rect.lu(), rect.ru(), rect.rd()],
+    //         offset: self.cursor - rect.size().yvec(),
+    //         uvs: sprite.uv_rect(),
+    //         texture: sprite.handle().clone(),
+    //     });
+    // }
 
     pub fn advance_x(&mut self, dx: f32) {
         self.cursor.0 += dx;
@@ -81,28 +93,28 @@ impl TextEngine {
                     verts: &[
                         BatchVertex {
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[0], 1.0)).xy(),
-                            tint: RGBA32::WHITE,
+                            tint: b.cols[0],
                             uv: b.uvs.lu(),
                             tex_id: 0,
                             user_data: 0,
                         },
                         BatchVertex {
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[1], 1.0)).xy(),
-                            tint: RGBA32::WHITE,
+                            tint: b.cols[1],
                             uv: b.uvs.ld(),
                             tex_id: 0,
                             user_data: 0,
                         },
                         BatchVertex {
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[2], 1.0)).xy(),
-                            tint: RGBA32::WHITE,
+                            tint: b.cols[2],
                             uv: b.uvs.rd(),
                             tex_id: 0,
                             user_data: 0,
                         },
                         BatchVertex {
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[3], 1.0)).xy(),
-                            tint: RGBA32::WHITE,
+                            tint: b.cols[3],
                             uv: b.uvs.ru(),
                             tex_id: 0,
                             user_data: 0,
@@ -164,11 +176,11 @@ impl TextEngine {
                         }
 
                         if let Some((name, args)) = process_tag(text, &mut iter, closing, i, c) {
-                            self.rtf_push(name, args, cfg.font);
+                            self.rtf_push(name, args, cfg.font, gear.buf_len() + gear.offset());
                         }
 
                         if closing {
-                            self.rtf_pop();
+                            self.rtf_pop(gear.buf_len() + gear.offset());
                         }
 
                         continue;
@@ -182,6 +194,16 @@ impl TextEngine {
 
                         // Word wrap!
                         if cfg.word_wrap && gear.to_be_wrapper(cfg.extents.0) {
+                            for cmd in self.rtf_stack.iter_mut().rev() {
+                                if cmd.char_index <= gear.buf_len() {
+                                    break;
+                                }
+
+                                cmd.char_index = (cmd.char_index + 1)
+                                    .saturating_sub(gear.current_spaces() as usize)
+                                    .max(gear.buf_len() + 1);
+                            }
+                            
                             gear.wrap_line();
                         }
                     }
@@ -199,6 +221,16 @@ impl TextEngine {
         std::mem::swap(&mut self.text_buf, res);
     }
 
+    /// This method exists EXCLUSIVELY BECAUSE I HATE THE BORROW CHECKER.
+    pub fn swap_rt_stack(&mut self, res: &mut Vec<RTCmd>) {
+        std::mem::swap(&mut self.rtf_stack, res);
+    }
+
+    /// This method exists EXCLUSIVELY BECAUSE I HATE THE BORROW CHECKER.
+    pub fn swap_rt_args_stack(&mut self, res: &mut String) {
+        std::mem::swap(&mut self.rtf_args_stack, res);
+    }
+
     pub fn get_line_data(&self, index: usize) -> LineData {
         self.lines_buf[index]
     }
@@ -212,20 +244,26 @@ impl TextEngine {
         self.rtf_args_stack.clear();
     }
 
-    fn rtf_push(&mut self, name: &str, args: &str, font: &dyn Font) {
+    fn rtf_push(&mut self, name: &str, args: &str, font: &dyn Font, offset: usize) {
         let rtfs = font.get_rich_functions();
         let Some(index) = rtfs.iter().position(|x| x.get_tag_name().trim() == name.trim()) else {
             log_warn!("{name} is not a recognized rich text function.");
             return;
         };
 
-        self.rtf_stack.push(RTCmd { index: Some(index), char_index: self.text_buf.len() });
+        self.rtf_stack.push(RTCmd {
+            index: Some(index),
+            char_index: offset
+        });
         self.rtf_args_stack.push_str(args);
         self.rtf_args_stack.push('\n');
     }
 
-    fn rtf_pop(&mut self) {
-        self.rtf_stack.push(RTCmd { index: None, char_index: self.text_buf.len() });
+    fn rtf_pop(&mut self, offset: usize) {
+        self.rtf_stack.push(RTCmd {
+            index: None,
+            char_index: offset
+        });
         self.rtf_args_stack.push('\n');
     }
 }
@@ -279,10 +317,11 @@ fn process_tag<'a>(
     return Some((name, args));
 }
 
-struct RTCmd {
+#[derive(Debug)]
+pub struct RTCmd {
     /// `None` for pop
-    index: Option<usize>,
-    char_index: usize,
+    pub index: Option<usize>,
+    pub char_index: usize,
 }
 
 /// As I don't have a better name, I will call this a 'Gear' because it sounds rad as fuck.
@@ -410,10 +449,19 @@ impl<'a> EngineGear<'a> {
     #[inline] fn current_spaces(&self) -> u32 {
         (self.space_range.1 - self.space_range.0) as u32
     }
+
+    fn offset(&self) -> usize {
+        self.space_range.1 - self.space_range.0 + self.word_range.1 - self.word_range.0
+    }
+
+    fn buf_len(&self) -> usize {
+        self.text_buf.len()
+    }
 }
 
 pub struct TextBatch {
     verts: [vec2; 4], // ld, lu, ru, rd
+    cols: [RGBA32; 4], // ld, lu, ru, rd
     offset: vec2,
     uvs: Rect,
     texture: TextureHandle,

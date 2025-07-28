@@ -3,9 +3,9 @@ use std::sync::Arc;
 use bitflags::bitflags;
 use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}, TIME_TS};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::TextStyle, TextCfg}, texture::TextureHandle, CameraData, Graphics, WHITE_TEX};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, RTCmd, TextEngine}, font::TextStyle, rich::{CharQuad, CharVert, RichTextContext}, TextCfg}, texture::{sprite::Sprite, TextureHandle}, CameraData, Graphics, WHITE_TEX};
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -27,6 +27,11 @@ pub struct RenderScope {
     render_started: bool,
     clear_col: RGBA32,
     pipeline: Option<PipelinePtr>,
+
+    /// Indices of rtc in the current text being processed
+    rich_text_commands: Vec<usize>,
+    charquad_out: Vec<CharQuad>,
+    charquad_in: Vec<CharQuad>,
 }
 
 impl RenderScope {
@@ -46,6 +51,10 @@ impl RenderScope {
             render_started: false,
             clear_col: RGBA32::BLACK,
             pipeline: None,
+
+            rich_text_commands: Vec::new(),
+            charquad_out: Vec::new(),
+            charquad_in: Vec::new(),
         }
     }
 
@@ -135,8 +144,18 @@ impl RenderScope {
         } = GraphicMetrics::calculate(&cfg, self.tex_ppu);
 
         self.text_engine.load(text, &cfg, self.tex_ppu);
+
         let mut sanitized_text = String::new(); // MUST BE EMPTY
+        let mut rt_stack = Vec::new(); // MUST BE EMPTY
+        let mut rt_args_stack = String::new(); // MUST BE EMPTY
         self.text_engine.swap_sanitized_text(&mut sanitized_text); // MUST BE SWAPPED BACK
+        self.text_engine.swap_rt_stack(&mut rt_stack); // MUST BE SWAPPED BACK
+        self.text_engine.swap_rt_args_stack(&mut rt_args_stack); // MUST BE SWAPPED BACK
+
+        // Index of rich text commands to check
+        self.rich_text_commands.clear();
+        let mut rt_index = 0usize;
+        let mut char_index = 0usize;
         
         let (dy0, mut line_separation) = cfg.ver_alignment.dy0_and_spaces(
             cfg.extents.1,
@@ -145,6 +164,12 @@ impl RenderScope {
         );
 
         line_separation = line_separation.max(0.0);
+
+        let mut charquad_in = Vec::new();
+        let mut charquad_out = Vec::new();
+
+        std::mem::swap(&mut charquad_in, &mut self.charquad_in);
+        std::mem::swap(&mut charquad_out, &mut self.charquad_out);
 
         self.text_engine.advance_y(dy0);
         for (i, line) in sanitized_text.lines().enumerate() {
@@ -158,27 +183,89 @@ impl RenderScope {
             self.text_engine.advance_x(dx0);
             
             for c in line.chars() {
+                // Rich Text Command thingy
+                while let Some(x) = rt_stack.get(rt_index) {
+                    if x.char_index <= char_index {
+                        match x.index {
+                            Some(cmd) => { self.rich_text_commands.push(cmd); },
+                            None => { self.rich_text_commands.pop(); },
+                        };
+                        rt_index += 1;
+                    } else {
+                        break;
+                    }
+                }
+                
                 if c.is_whitespace() {
                     // No char_separation because it is already included in space_width
                     self.text_engine.advance_x(space_width);
+                    char_index += c.len_utf8();
                     continue;
                 }
             
-                if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
-                    self.text_engine.add_sprite(
+                let style = self.rich_text_commands.iter()
+                    .scan(TextStyle::Regular, |state, id| {
+                        *state = cfg.font.get_rich_functions()[*id].new_style(*state);
+                        return Some(*state);
+                    })
+                    .last()
+                    .unwrap_or(TextStyle::Regular);
+
+                if let Some((sprite, _)) = cfg.font.get_char(style, c) {
+                    // <<<<<<<<<<<<<<<<<<<<<< R I G H T      H E R E >>>>>>>>>>>>>>>>>>>>>>>>>> //
+                    let scale = line_height / sprite.dims().1 as f32;
+                    let height = sprite.dims().1 as f32 * scale;
+                    let initial = initial_charquad(
                         vec2::ZERO,
                         &sprite,
-                        line_height / sprite.dims().1 as f32
+                        scale,
                     );
+
+                    let (time, ts) = {
+                        let time_ts = TIME_TS.lock().unwrap();
+                        *time_ts
+                    };
+
+                    let ctx = RichTextContext {
+                        time,
+                        ts,
+                        index: char_index,
+                        char: c,
+                    };
+
+                    charquad_out.clear();
+                    charquad_out.push(initial);
+
+                    for cmd in &self.rich_text_commands {
+                        charquad_in.clear();
+                        charquad_in.extend_from_slice(&charquad_out);
+
+                        cfg.font.get_rich_functions()[*cmd].draw(
+                            rt_args_stack.lines().nth(*cmd).unwrap_or("").split(','),
+                            &charquad_in,
+                            &mut charquad_out,
+                            &ctx,
+                        );
+                    }
+
+                    self.text_engine.add_quads(&charquad_out, height);
 
                     let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
                     self.text_engine.advance_x(width + char_separation);
+                    // <<<<<<<<<<<<<<<<<<<<<<========================>>>>>>>>>>>>>>>>>>>>>>>>>> //
                 }
+                char_index += c.len_utf8();
             }
             self.text_engine.advance_y(line_separation);
+            char_index += 1;
         }
 
         self.text_engine.swap_sanitized_text(&mut sanitized_text); // Return the real buffer
+        self.text_engine.swap_rt_stack(&mut rt_stack); // Return the real buffer
+        self.text_engine.swap_rt_args_stack(&mut rt_args_stack); // Return the real buffer
+
+        std::mem::swap(&mut charquad_in, &mut self.charquad_in);
+        std::mem::swap(&mut charquad_out, &mut self.charquad_out);
 
         let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
         let material = self.material();
@@ -373,3 +460,18 @@ pub(crate) struct LineSubmitCmd {
 struct PipelinePtr(*const dyn RenderPipeline);
 unsafe impl Sync for PipelinePtr {}
 unsafe impl Send for PipelinePtr {}
+
+fn initial_charquad(offset: vec2, sprite: &Sprite, scale: f32) -> CharQuad {
+    let rect = Rect::from_points(
+        offset,
+        offset + vec2::from(sprite.dims()) * scale,
+    );
+
+    return CharQuad {
+        ld: CharVert { pos: rect.ld(), color: RGBA32::WHITE, user_data: 0 },
+        lu: CharVert { pos: rect.lu(), color: RGBA32::WHITE, user_data: 0 },
+        ru: CharVert { pos: rect.ru(), color: RGBA32::WHITE, user_data: 0 },
+        rd: CharVert { pos: rect.rd(), color: RGBA32::WHITE, user_data: 0 },
+        sprite: sprite.clone(),
+    };
+}

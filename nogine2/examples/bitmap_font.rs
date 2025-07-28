@@ -23,6 +23,7 @@ fn main() {
         }
     );
     font.add_rich_function(Box::new(RTFRed));
+    font.add_rich_function(Box::new(RTFWave));
 
     Graphics::set_pixels_per_unit(16.0);
 
@@ -64,7 +65,7 @@ fn main() {
                 rich_text: true,
             },
 
-            "DELTARUNE <red>TOMORROW</red> REAL\nNO FAKE 1 LINK MEDIAFIRE"
+            "human, i <wave>remember you're <red>genocides</red> eeeeee</wave> eeee"
         );
 
         dbg!(window.post_tick());
@@ -89,6 +90,30 @@ impl RichTextFunction for RTFRed {
             q.ld.color = RGBA32::RED;
             q.ru.color = RGBA32::RED;
             q.rd.color = RGBA32::RED;
+        }
+    }
+}
+
+struct RTFWave;
+impl RichTextFunction for RTFWave {
+    fn get_tag_name(&self) -> &'static str {
+        "wave"
+    }
+
+    fn draw(
+        &self,
+        _args: Split<'_, char>,
+        _in_quads: &[CharQuad],
+        out_quads: &mut Vec<CharQuad>,
+        ctx: &RichTextContext
+    ) {
+        let y_offset = (ctx.time * 4.0 + ctx.index as f32 * 0.5).sin() * 0.05;
+        
+        for q in out_quads {
+            q.lu.pos += vec2::up(y_offset);
+            q.ld.pos += vec2::up(y_offset);
+            q.ru.pos += vec2::up(y_offset);
+            q.rd.pos += vec2::up(y_offset);
         }
     }
 }

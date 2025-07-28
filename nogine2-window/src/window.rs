@@ -91,7 +91,15 @@ impl Window {
             &DEFAULT_PIPELINE as *const dyn RenderPipeline
         };
 
-        global_begin_render(setup.camera, setup.target_res, setup.ui_res, setup.clear_col, pipeline);
+        global_begin_render(
+            setup.camera,
+            setup.target_res,
+            setup.ui_res,
+            setup.clear_col,
+            pipeline,
+            self.time().as_secs_f32(),
+            self.ts,
+        );
         PRE_TICK_EVS.read().unwrap().call(self);
     }
 

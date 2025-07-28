@@ -2,7 +2,7 @@ use std::str::Split;
 
 use nogine2_core::math::vector2::vec2;
 
-use crate::colors::rgba::RGBA32;
+use crate::{colors::rgba::RGBA32, graphics::texture::sprite::Sprite};
 
 use super::font::TextStyle;
 
@@ -10,9 +10,6 @@ pub trait RichTextFunction {
     /// Returns the name of the tag associated with this function.
     fn get_tag_name(&self) -> &'static str;
 
-    /// Defines whether `draw` is executed on spaces.
-    fn apply_to_whitespaces(&self) -> bool { false }
-    
     /// Main function to override. Defines how the character drawing is modified.
     /// `out_quads` is prefilled with the data in `ìn_quads`.
     fn draw(
@@ -40,12 +37,13 @@ pub struct RichTextContext {
     pub char: char,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CharQuad {
     pub lu: CharVert,
     pub ld: CharVert,
     pub ru: CharVert,
     pub rd: CharVert,
+    pub sprite: Sprite,
 }
 
 #[derive(Debug, Clone, Copy)]

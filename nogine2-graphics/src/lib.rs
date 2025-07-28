@@ -1,4 +1,4 @@
-use std::ffi::c_void;
+use std::{ffi::c_void, sync::Mutex};
 
 use colors::rgba::RGBA32;
 use gl_wrapper::{gl_enable_blend, gl_load};
@@ -23,7 +23,22 @@ pub fn init_graphics(load_fn: impl Fn(&str) -> *const c_void) -> bool {
     return true;
 }
 
-pub fn global_begin_render(camera: CameraData, target_res: uvec2, ui_res: Option<uvec2>, clear_col: RGBA32, pipeline: *const dyn RenderPipeline) {
+pub(crate) static TIME_TS: Mutex<(f32, f32)> = Mutex::new((0.0, 0.0));
+
+pub fn global_begin_render(
+    camera: CameraData,
+    target_res: uvec2,
+    ui_res: Option<uvec2>,
+    clear_col: RGBA32,
+    pipeline: *const dyn RenderPipeline,
+    time: f32,
+    ts: f32,
+) {
+    {
+        let mut time_ts = TIME_TS.lock().unwrap();
+        *time_ts = (time, ts);
+    }
+
     Graphics::begin_render(camera, target_res, ui_res, clear_col, pipeline);
 }
 
