@@ -30,6 +30,12 @@ fn main() {
     let mut text_pos = vec2::ZERO;
     let mut extents = vec2(6.0, 2.0);
     
+    Graphics::set_rich_text(true);
+    Graphics::set_word_wrap(true);
+    Graphics::set_text_hor_alignment(HorTextAlign::Center);
+    Graphics::set_text_ver_alignment(VerTextAlign::Center);
+    Graphics::set_font_size(9.0);
+
     while window.is_open() {
         window.pre_tick(FrameSetup {
             camera: CameraData {
@@ -52,20 +58,11 @@ fn main() {
         )) * window.ts();
         
         Graphics::draw_text(
-            TextCfg {
-                origin: text_pos,
-                extents,
-                rot: 0.0,
-                font_size: 9.0,
-                font: &font,
-                scale: vec2::ONE,
-                hor_alignment: HorTextAlign::Center,
-                ver_alignment: VerTextAlign::Center,
-                word_wrap: true,
-                rich_text: true,
-            },
-
-            "human, i <wave>remember you're <red>genocides</red> eeeeee</wave> eeee"
+            text_pos,
+            0.0,
+            extents,
+            "human, i <wave>remember you're <red>genocides</red> eeeeee</wave> eeee",
+            &font
         );
 
         dbg!(window.post_tick());

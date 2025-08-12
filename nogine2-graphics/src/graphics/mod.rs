@@ -9,7 +9,7 @@ use text::TextCfg;
 use texture::{pixels::{PixelFormat, Pixels}, rendertex::RenderTexture, sprite::Sprite, Texture2D, TextureFiltering, TextureHandle, TextureSampling, TextureWrapping};
 use ui::area::UIArea;
 
-use crate::colors::{rgba::RGBA32, Color};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::text::{align::{HorTextAlign, VerTextAlign}, font::Font}};
 
 pub mod vertex;
 pub mod defaults;
@@ -97,9 +97,14 @@ impl Graphics {
         graphics.active_scope.draw_line(LineSubmitCmd { verts: [from, to], cols: colors });
     }
 
-    pub fn draw_text(cfg: TextCfg, text: &str) {
+    pub fn draw_text(origin: vec2, rot: f32, extents: vec2, text: &str, font: &dyn Font) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
-        graphics.active_scope.draw_text(cfg, text);
+        graphics.active_scope.draw_text(origin, rot, extents, text, font);
+    }
+
+    pub fn draw_text_stateless(cfg: TextCfg, text: &str) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.draw_text_stateless(cfg, text);
     }
 
     /// Returns the current camera data.
@@ -172,6 +177,66 @@ impl Graphics {
     pub fn material() -> Arc<Material> {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
         return graphics.active_scope.material();
+    }
+
+    /// Returns the font size.
+    pub fn font_size() -> f32 {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.font_size();
+    }
+
+    /// Sets the font size.
+    pub fn set_font_size(font_size: f32) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_font_size(font_size);
+    }
+
+    /// Returns the horizontal alignment for text.
+    pub fn text_hor_alignment(&self) -> HorTextAlign {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.text_hor_alignment();
+    }
+
+    /// Sets the horizontal alignment for text.
+    pub fn set_text_hor_alignment(text_hor_alignment: HorTextAlign) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_text_hor_alignment(text_hor_alignment);
+    }
+
+    /// Returns the vertical alignment for text.
+    pub fn text_ver_alignment(&self) -> VerTextAlign {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.text_ver_alignment();
+    }
+
+    /// Sets the vertical alignment for text.
+    pub fn set_text_ver_alignment(text_ver_alignment: VerTextAlign) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_text_ver_alignment(text_ver_alignment);
+    }
+
+    /// Returns the word wrap flag.
+    pub fn word_wrap(&self) -> bool {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.word_wrap();
+    }
+
+    /// Sets the word wrap flag.
+    pub fn set_word_wrap(word_wrap: bool) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_word_wrap(word_wrap);
+    }
+
+    /// Returns the rich text flag.
+    pub fn rich_text(&self) -> bool {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.rich_text();
+    }
+
+    /// Sets the rich text flag.
+    pub fn set_rich_text(rich_text: bool) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_rich_text(rich_text);
     }
 
     /// Returns the current configuration.

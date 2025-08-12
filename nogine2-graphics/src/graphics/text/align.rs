@@ -1,5 +1,6 @@
 use super::engine::LineData;
 
+#[derive(Debug, Clone, Copy)]
 pub enum HorTextAlign {
     Left, Center, Right, //Expand, Justified,
 }
@@ -24,6 +25,7 @@ impl HorTextAlign {
 }
 
 
+#[derive(Debug, Clone, Copy)]
 pub enum VerTextAlign {
     Top, Center, Bottom, //Expand,
 }

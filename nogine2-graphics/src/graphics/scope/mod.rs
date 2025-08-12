@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bitflags::bitflags;
 use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, texture::rendertex::RenderTexture, vertex::BatchVertex}, TIME_TS};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, text::{align::{HorTextAlign, VerTextAlign}, font::Font}, texture::rendertex::RenderTexture, vertex::BatchVertex}, TIME_TS};
 
 use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::TextStyle, rich::{CharQuad, CharVert, RichTextContext}, TextCfg}, texture::{sprite::Sprite, TextureHandle}, CameraData, Graphics, WHITE_TEX};
 
@@ -28,6 +28,12 @@ pub struct RenderScope {
     clear_col: RGBA32,
     pipeline: Option<PipelinePtr>,
 
+    font_size: f32,
+    hor_alignment: HorTextAlign,
+    ver_alignment: VerTextAlign,
+    word_wrap: bool,
+    rich_text: bool,
+    
     /// Indices of rtc in the current text being processed
     rich_text_commands: Vec<usize>,
     charquad_out: Vec<CharQuad>,
@@ -51,6 +57,12 @@ impl RenderScope {
             render_started: false,
             clear_col: RGBA32::BLACK,
             pipeline: None,
+
+            font_size: 12.0,
+            hor_alignment: HorTextAlign::Left,
+            ver_alignment: VerTextAlign::Top,
+            word_wrap: false,
+            rich_text: false,            
 
             rich_text_commands: Vec::new(),
             charquad_out: Vec::new(),
@@ -134,7 +146,32 @@ impl RenderScope {
         self.batch_data.push(BatchPushCmd::Lines { verts, blending, material }, culling_enabled);
     }
 
-    pub(crate) fn draw_text(&mut self, cfg: TextCfg, text: &str) {
+    pub(crate) fn draw_text(
+        &mut self,
+        origin: vec2,
+        rot: f32,
+        extents: vec2,
+        text: &str,
+        font: &dyn Font
+    ) {
+        return self.draw_text_stateless(
+            TextCfg {
+                origin,
+                rot,
+                scale: vec2::ONE,
+                extents,
+                font_size: self.font_size,
+                font,
+                hor_alignment: self.hor_alignment,
+                ver_alignment: self.ver_alignment,
+                word_wrap: self.word_wrap,
+                rich_text: self.rich_text,
+            },
+            text
+        );
+    }
+
+    pub(crate) fn draw_text_stateless(&mut self, cfg: TextCfg, text: &str) {
         test_main_thread();
 
         let GraphicMetrics {
@@ -347,6 +384,56 @@ impl RenderScope {
     /// Returns the active material.
     pub fn material(&self) -> Arc<Material> {
         self.material.clone().unwrap_or(DefaultMaterials::batch())
+    }
+
+    /// Returns the font size.
+    pub fn font_size(&self) -> f32 {
+        self.font_size
+    }
+
+    /// Sets the font size.
+    pub fn set_font_size(&mut self, font_size: f32) {
+        self.font_size = font_size;
+    }
+
+    /// Returns the horizontal alignment for text.
+    pub fn text_hor_alignment(&self) -> HorTextAlign {
+        self.hor_alignment
+    }
+
+    /// Sets the horizontal alignment for text.
+    pub fn set_text_hor_alignment(&mut self, text_hor_alignment: HorTextAlign) {
+        self.hor_alignment = text_hor_alignment;
+    }
+
+    /// Returns the vertical alignment for text.
+    pub fn text_ver_alignment(&self) -> VerTextAlign {
+        self.ver_alignment
+    }
+
+    /// Sets the vertical alignment for text.
+    pub fn set_text_ver_alignment(&mut self, text_ver_alignment: VerTextAlign) {
+        self.ver_alignment = text_ver_alignment;
+    }
+
+    /// Returns the word wrap flag.
+    pub fn word_wrap(&self) -> bool {
+        self.word_wrap
+    }
+
+    /// Sets the word wrap flag.
+    pub fn set_word_wrap(&mut self, word_wrap: bool) {
+        self.word_wrap = word_wrap;
+    }
+
+    /// Returns the rich text flag.
+    pub fn rich_text(&self) -> bool {
+        self.rich_text
+    }
+
+    /// Sets the rich text flag.
+    pub fn set_rich_text(&mut self, rich_text: bool) {
+        self.rich_text = rich_text;
     }
 
     /// Returns the current configuration.
