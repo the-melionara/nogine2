@@ -307,18 +307,20 @@ impl RenderScope {
         let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
         let material = self.material();
 
-        self.draw_rect(RectSubmitCmd {
-            pos: cfg.origin,
-            rot: cfg.rot,
-            extents: cfg.extents,
-            tint: [RGBA32::GRAY; 4],
-            texture: WHITE_TEX.get(),
-            uv_rect: Rect::IDENT
-        });
+        let inverted_y = self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN);
+
+        let y_scaling = if inverted_y { -1.0 } else { 1.0 };
+        let tf_mat = mat3::tf_matrix(
+            cfg.origin.scale(vec2(1.0, y_scaling))
+            - if inverted_y { cfg.extents.yvec().scale(cfg.scale) } else { vec2::ZERO }
+            - cfg.extents.scale(cfg.scale).scale(self.pivot).scale(vec2(1.0, y_scaling)),
+            cfg.rot,
+            cfg.scale.scale(vec2(1.0, -1.0))
+        );
 
         self.text_engine.render(
             &mut self.batch_data,
-            mat3::tf_matrix(cfg.origin, cfg.rot, cfg.scale.scale(vec2(1.0, -1.0))),
+            tf_mat,
             culling_enabled,
             self.blending,
             material,

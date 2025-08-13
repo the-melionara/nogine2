@@ -192,7 +192,7 @@ impl Graphics {
     }
 
     /// Returns the horizontal alignment for text.
-    pub fn text_hor_alignment(&self) -> HorTextAlign {
+    pub fn text_hor_alignment() -> HorTextAlign {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
         return graphics.active_scope.text_hor_alignment();
     }
@@ -204,7 +204,7 @@ impl Graphics {
     }
 
     /// Returns the vertical alignment for text.
-    pub fn text_ver_alignment(&self) -> VerTextAlign {
+    pub fn text_ver_alignment() -> VerTextAlign {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
         return graphics.active_scope.text_ver_alignment();
     }
@@ -216,7 +216,7 @@ impl Graphics {
     }
 
     /// Returns the word wrap flag.
-    pub fn word_wrap(&self) -> bool {
+    pub fn word_wrap() -> bool {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
         return graphics.active_scope.word_wrap();
     }
@@ -228,7 +228,7 @@ impl Graphics {
     }
 
     /// Returns the rich text flag.
-    pub fn rich_text(&self) -> bool {
+    pub fn rich_text() -> bool {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
         return graphics.active_scope.rich_text();
     }

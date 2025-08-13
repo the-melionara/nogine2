@@ -6,8 +6,10 @@ Nogine2 is **HIGHLY EXPERIMENTAL AND NOT BATTLE TESTED**. For an even more unusa
 ## Graphics
 - [ ] Expand alignments for text
 - [x] Rich text
-- [ ] Stateful text option
-- [ ] Text in UI
+- [x] Stateful text option
+- [x] Text in UI
+- [ ] UI panels
+- [ ] UI input
 - [ ] Texture uniforms
 
 ## Audio

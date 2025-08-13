@@ -1,6 +1,6 @@
 use std::{any::Any, fs::File, str::Split};
 
-use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, text::{align::{HorTextAlign, VerTextAlign}, font::{bitmap::BitmapFont, FontCfg, Measure, TextStyle}, rich::{CharQuad, RichTextContext, RichTextFunction}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
+use nogine2::{colors::{rgba::RGBA32, Color}, graphics::{gfx::screen_to_world_pos, scope::RenderScopeCfgFlags, text::{align::{HorTextAlign, VerTextAlign}, font::{bitmap::BitmapFont, FontCfg, Measure, TextStyle}, rich::{CharQuad, RichTextContext, RichTextFunction}, TextCfg}, texture::{sprite::SpriteAtlas, Texture2D, TextureFiltering, TextureSampling, TextureWrapping}, ui::Anchor, CameraData, FrameSetup, Graphics}, input::{keyboard::Key, mouse::Button, Input}, log_info, math::{rect::Rect, vector2::{uvec2, vec2}}, prelude::init_nogine2, unwrap_res, window::{Window, WindowCfg}};
 
 fn main() {
     init_nogine2();
@@ -36,6 +36,8 @@ fn main() {
     Graphics::set_text_ver_alignment(VerTextAlign::Center);
     Graphics::set_font_size(9.0);
 
+    Graphics::enable_cfg(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN);
+
     while window.is_open() {
         window.pre_tick(FrameSetup {
             camera: CameraData {
@@ -44,6 +46,7 @@ fn main() {
             },
             target_res: window.res(),
             clear_col: RGBA32::BLACK,
+            ui_res: Some(window.res()),
             ..Default::default()
         });
 
@@ -56,14 +59,32 @@ fn main() {
             (Key::A, Key::S),
             (Key::D, Key::W)
         )) * window.ts();
-        
-        Graphics::draw_text(
-            text_pos,
-            0.0,
-            extents,
-            "human, i <wave>remember you're <red>genocides</red> eeeeee</wave> eeee",
-            &font
-        );
+
+        Graphics::ui(|ui| {
+            ui.horizontal_layout("hor", 2, |ui, i| {
+                const TEXT: [&str; 2] = ["A tale of love and hate", "A tale of light and dark"];
+                const COLS: [RGBA32; 2] = [RGBA32::DARK_RED, RGBA32::DARK_BLUE];
+
+                ui.draw_rect(Anchor::Center, vec2::ZERO, 0.0, ui.size(), COLS[i]);
+
+                ui.set_rich_text(true);
+                ui.set_word_wrap(true);
+                ui.set_text_hor_alignment(HorTextAlign::Center);
+                ui.set_text_ver_alignment(VerTextAlign::Center);
+                ui.set_font_size(90.0);
+
+                ui.draw_text(Anchor::Center, vec2::ZERO, 0.0, ui.size(), TEXT[i], &font);
+            });
+        });
+
+        // Graphics::set_pivot(vec2::one(0.5));
+        // Graphics::draw_text(
+        //     text_pos,
+        //     0.0,
+        //     extents,
+        //     "human, i <wave>remember you're <red>genocides</red> eeeeee</wave> eeee",
+        //     &font
+        // );
 
         dbg!(window.post_tick());
     }
