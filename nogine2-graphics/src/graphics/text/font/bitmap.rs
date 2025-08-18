@@ -62,7 +62,7 @@ impl BitmapFont {
 
     fn get_styled_char(&self, style: TextStyle, char: char) -> Option<Sprite> {
         let data = self.styles.get(&style)?;
-        return Some(data.atlas.get(data.rects.get(&char).copied()?));
+        return Some(data.atlas.get_rect(data.rects.get(&char).copied()?));
     }
 }
 

@@ -259,6 +259,7 @@ impl RenderScope {
         assert_pre_tick!(self);
 
         let GraphicMetrics {
+            font_size,
             line_height,
             char_separation,
             space_width
@@ -334,7 +335,8 @@ impl RenderScope {
 
                 if let Some((sprite, _)) = cfg.font.get_char(style, c) {
                     // <<<<<<<<<<<<<<<<<<<<<< R I G H T      H E R E >>>>>>>>>>>>>>>>>>>>>>>>>> //
-                    let scale = line_height / sprite.dims().1 as f32;
+                    // TODO: This two lines are probably very dumb
+                    let scale = font_size / sprite.dims().1 as f32;
                     let height = sprite.dims().1 as f32 * scale;
                     let initial = initial_charquad(
                         vec2::ZERO,
@@ -371,7 +373,7 @@ impl RenderScope {
 
                     self.text_engine.add_quads(&charquad_out, height);
 
-                    let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
+                    let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * font_size;
                     self.text_engine.advance_x(width + char_separation);
                     // <<<<<<<<<<<<<<<<<<<<<<========================>>>>>>>>>>>>>>>>>>>>>>>>>> //
                 }

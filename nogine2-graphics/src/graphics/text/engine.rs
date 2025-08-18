@@ -147,7 +147,8 @@ impl TextEngine {
         let mut gear = EngineGear::new(text, &mut text_swap, &mut lines_swap);
 
         let GraphicMetrics {
-            line_height,
+            font_size,
+            line_height: _,
             char_separation,
             space_width: space_char_width,
         } = GraphicMetrics::calculate(cfg, tex_ppu);
@@ -188,7 +189,7 @@ impl TextEngine {
                     escaped_tag = false;
 
                     if let Some((sprite, _)) = cfg.font.get_char(TextStyle::Regular, c) {
-                        let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * line_height;
+                        let width = sprite.dims().0 as f32 / sprite.dims().1 as f32 * font_size;
 
                         gear.push_char(c, i, width, char_separation);
 
@@ -485,6 +486,7 @@ pub mod helpers {
     use crate::graphics::text::{font::Measure, TextCfg};
 
     pub struct GraphicMetrics {
+        pub font_size: f32,
         pub line_height: f32,
         pub char_separation: f32,
         pub space_width: f32,
@@ -493,17 +495,21 @@ pub mod helpers {
     impl GraphicMetrics {
         /// `space_width` already includes `char_separation`
         pub fn calculate(cfg: &TextCfg<'_>, tex_ppu: f32) -> Self {
-            let line_height = cfg.font_size / tex_ppu;
+            let font_size = cfg.font_size / tex_ppu;
+            let line_height = match cfg.font.cfg().line_separation {
+                Measure::Percent(x) => x * font_size,
+                Measure::Pixels(x) => x / tex_ppu,
+            };
             let char_separation = match cfg.font.cfg().char_separation {
-                Measure::Percent(x) => x * line_height,
+                Measure::Percent(x) => x * font_size,
                 Measure::Pixels(x) => x / tex_ppu,
             };
             let space_width = match cfg.font.cfg().space_width {
-                Measure::Percent(x) => x * line_height,
+                Measure::Percent(x) => x * font_size,
                 Measure::Pixels(x) => x / tex_ppu,
             } + char_separation;
 
-            return Self { line_height, char_separation, space_width };
+            return Self { font_size, line_height, char_separation, space_width };
         }
     }
 }

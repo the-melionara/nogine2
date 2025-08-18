@@ -23,6 +23,9 @@ pub struct FontCfg {
 
     /// Measure::Percent is relative to the font size when rendering the text.
     pub char_separation: Measure,
+
+    /// Measure::Percent is relative to the font size when rendering the text.
+    pub line_separation: Measure,
 }
 
 #[derive(Debug, Clone, Copy)]
