@@ -1,4 +1,4 @@
-use nogine2_core::{assert_expr, math::{rect::{IRect, Rect}, vector2::{uvec2, vec2}}};
+use nogine2_core::{assert_expr, math::{rect::{IRect, Rect}, vector2::{ivec2, uvec2, vec2}}};
 
 use super::{Texture2D, TextureHandle};
 
@@ -40,8 +40,12 @@ impl SpriteAtlas {
         self.epsilon = epsilon;
     }
 
+    pub fn get(&self, pos: ivec2) -> Sprite {
+        self.get_rect(IRect { start: pos, end: pos + ivec2::ONE })
+    }
+
     /// Samples a sprite from a `rect` in cell space. Will panic if `rect.start <= rect.end` for any axis.
-    pub fn get(&self, rect: IRect) -> Sprite {
+    pub fn get_rect(&self, rect: IRect) -> Sprite {
         assert_expr!(rect.start.0 < rect.end.0 && rect.start.1 < rect.end.1, "'rect.start' must be lesser than 'rect.end' for every axis!");
 
         let start_texel_offset = self.epsilon.start_offset();
