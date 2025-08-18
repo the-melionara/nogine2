@@ -2,7 +2,7 @@ use std::mem::{offset_of, size_of};
 
 use nogine2_core::math::vector2::vec2;
 
-use crate::{colors::rgba::RGBA32, gl_wrapper::vao::{GlVertexAttribDefinition, GlVertexAttribType}};
+use crate::{colors::{rgba::RGBA32, Color}, gl_wrapper::vao::{GlVertexAttribDefinition, GlVertexAttribType}};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -22,6 +22,12 @@ impl BatchVertex {
         GlVertexAttribDefinition { id: 3, stride: size_of::<Self>(), offset: offset_of!(Self, tex_id   ), typ: GlVertexAttribType::Uint,  vec_len: 1 },
         GlVertexAttribDefinition { id: 4, stride: size_of::<Self>(), offset: offset_of!(Self, user_data), typ: GlVertexAttribType::Int,   vec_len: 1 },
     ];
+}
+
+impl Default for BatchVertex {
+    fn default() -> Self {
+        Self { pos: vec2::ZERO, tint: RGBA32::BLACK, uv: vec2::ZERO, tex_id: 0, user_data: 0 }
+    }
 }
 
 

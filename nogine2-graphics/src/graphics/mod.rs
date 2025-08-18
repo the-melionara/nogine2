@@ -97,6 +97,29 @@ impl Graphics {
         graphics.active_scope.draw_line(LineSubmitCmd { verts: [from, to], cols: colors });
     }
 
+    pub fn draw_9_patch(pos: vec2, rot: f32, extents: vec2, sprite: &Sprite) {
+        Self::draw_9_patch_ext(pos, rot, extents, RGBA32::WHITE, sprite, 1.0);
+    }
+    
+    pub fn draw_9_patch_ext(
+        pos: vec2,
+        rot: f32,
+        extents: vec2,
+        tint: RGBA32,
+        sprite: &Sprite,
+        corner_scaling: f32
+    ) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.draw_9_patch(scope::NinePatchSubmitCmd {
+            pos,
+            rot,
+            extents,
+            tint,
+            sprite: sprite.clone(),
+            corner_scaling
+        });
+    }
+
     pub fn draw_text(origin: vec2, rot: f32, extents: vec2, text: &str, font: &dyn Font) {
         let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
         graphics.active_scope.draw_text(origin, rot, extents, text, font);

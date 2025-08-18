@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bitflags::bitflags;
-use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{mat3x3::mat3, rect::Rect, vector2::{uvec2, vec2}, vector3::vec3}};
+use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{lerp::Lerp, mat3x3::mat3, rect::Rect, vector2::{ivec2, uvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, text::{align::{HorTextAlign, VerTextAlign}, font::Font}, texture::rendertex::RenderTexture, vertex::BatchVertex}, TIME_TS};
 
@@ -10,6 +10,15 @@ use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
 pub mod ui;
+
+macro_rules! assert_pre_tick {
+    ($obj:expr) => {
+        assert_expr!(
+            $obj.render_started,
+            "Render commands can only be called after Window::pre_tick!"
+        )
+    };
+}
 
 /// Basic render scope for scene rendering.
 pub struct RenderScope {
@@ -87,7 +96,7 @@ impl RenderScope {
 
     pub(crate) fn draw_rect(&mut self, cmd: RectSubmitCmd) {
         test_main_thread();
-        assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
+        assert_pre_tick!(self);
         let inverted_y = self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN);
 
         let y_scaling = if inverted_y { -1.0 } else { 1.0 };
@@ -116,7 +125,7 @@ impl RenderScope {
 
     pub(crate) fn draw_points(&mut self, cmd: PointsSubmitCmd<'_>) {
         test_main_thread();
-        assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
+        assert_pre_tick!(self);
 
         let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let verts = cmd.points.iter().map(|(pos, col)|
@@ -131,7 +140,7 @@ impl RenderScope {
 
     pub(crate) fn draw_line(&mut self, cmd: LineSubmitCmd) {
         test_main_thread();
-        assert_expr!(self.render_started, "Render commands can only be called after Window::pre_tick!");
+        assert_pre_tick!(self);
 
         let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let user_data = self.user_data;
@@ -144,6 +153,80 @@ impl RenderScope {
         let material = self.material();
         let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
         self.batch_data.push(BatchPushCmd::Lines { verts, blending, material }, culling_enabled);
+    }
+
+    pub(crate) fn draw_9_patch(&mut self, cmd: NinePatchSubmitCmd) {
+        fn bilinear(rect: Rect, mut uv: vec2, inverted_y: bool) -> vec2 {
+            if !inverted_y {
+                uv.1 = 1.0 - uv.1;
+            }
+            
+            let up = rect.lu().lerp(rect.ru(), uv.0);
+            let down = rect.ld().lerp(rect.rd(), uv.0);
+            return down.lerp(up, uv.1);
+        }
+        
+        test_main_thread();
+        assert_pre_tick!(self);
+
+        let corner_size = vec2::from(cmd.sprite.dims()) / self.tex_ppu * cmd.corner_scaling / 3.0;
+        let min_extents = corner_size * 2.0;
+        let extents = cmd.extents.max(min_extents);
+        let rel_corner = corner_size.inv_scale(extents);
+        
+        let inverted_y = self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN);
+
+        let y_scaling = if inverted_y { -1.0 } else { 1.0 };
+        let tf_mat = mat3::tf_matrix(
+            cmd.pos.scale(vec2(1.0, y_scaling)),
+            cmd.rot,
+            extents.scale(vec2(1.0, -y_scaling))
+        );
+
+        let uv_rect = cmd.sprite.uv_rect();
+        let user_data = self.user_data;
+        let diag = [vec2::ZERO, rel_corner, vec2::ONE - rel_corner, vec2::ONE];
+        let mut verts = [BatchVertex::default(); 16];
+        for i in 0..16 {
+            let mut uv = vec2::from(ivec2(i as i32 % 4, i as i32 / 4)) / 3.0;
+            uv.1 = 1.0 - uv.1;
+
+            let pos = diag[i % 4].xvec() + diag[i / 4].yvec();
+            verts[i] = BatchVertex {
+                pos: (&tf_mat * vec3::from_xy(pos - self.pivot, 1.0)).xy(),
+                tint: cmd.tint,
+                uv: bilinear(uv_rect, uv, inverted_y),
+                tex_id: 0,
+                user_data
+            };
+        }
+
+        // 12  13  14  15
+        //  8   9  10  11
+        //  4   5   6   7
+        //  0   1   2   3
+        let indices = &[
+            0, 4, 5, 5, 1, 0,
+            1, 5, 6, 6, 2, 1,
+            2, 6, 7, 7, 3, 2,
+            4, 8, 9, 9, 5, 4,
+            5, 9, 10, 10, 6, 5,
+            6, 10, 11, 11, 7, 6,
+            8, 12, 13, 13, 9, 8,
+            9, 13, 14, 14, 10, 9,
+            10, 14, 15, 15, 11, 10,
+        ];
+   
+        let blending = self.blending;
+        let material = self.material();
+        let culling_enabled = self.cfg_flags.contains(RenderScopeCfgFlags::CULLING);
+        self.batch_data.push(BatchPushCmd::Triangles {
+            verts: &verts,
+            indices,
+            texture: cmd.sprite.handle().clone(),
+            blending,
+            material
+        }, culling_enabled);
     }
 
     pub(crate) fn draw_text(
@@ -173,6 +256,7 @@ impl RenderScope {
 
     pub(crate) fn draw_text_stateless(&mut self, cfg: TextCfg, text: &str) {
         test_main_thread();
+        assert_pre_tick!(self);
 
         let GraphicMetrics {
             line_height,
@@ -476,7 +560,7 @@ impl RenderScope {
     }
 
     pub(crate) fn end_render(&mut self, rt: &RenderTexture, is_ui: bool, complement_data: Option<SceneData<'_>>) -> RenderStats { 
-        assert_expr!(self.render_started, "Window::post_tick must be called after Window::pre_tick!");
+        assert_pre_tick!(self);
         self.render_started = false;
 
         let mut stats = RenderStats::new();
@@ -543,6 +627,15 @@ pub(crate) struct PointsSubmitCmd<'a> {
 pub(crate) struct LineSubmitCmd {
     pub verts: [vec2; 2],
     pub cols: [RGBA32; 2],
+}
+
+pub(crate) struct NinePatchSubmitCmd {
+    pub pos: vec2,
+    pub rot: f32,
+    pub extents: vec2,
+    pub tint: RGBA32,
+    pub sprite: Sprite,
+    pub corner_scaling: f32,
 }
 
 

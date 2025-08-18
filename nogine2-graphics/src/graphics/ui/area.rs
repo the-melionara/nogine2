@@ -2,7 +2,7 @@ use std::{marker::PhantomData, num::Wrapping};
 
 use nogine2_core::math::{lerp::CompLerp, rect::Rect, vector2::{uvec2, vec2}};
 
-use crate::{colors::{rgba::RGBA32, Color}, graphics::{scope::RenderScope, text::{align::{HorTextAlign, VerTextAlign}, font::Font, TextCfg}, texture::{sprite::Sprite, Texture2D, TextureHandle}, RectSubmitCmd, WHITE_TEX}};
+use crate::{colors::{rgba::RGBA32, Color}, graphics::{scope::{NinePatchSubmitCmd, RenderScope}, text::{align::{HorTextAlign, VerTextAlign}, font::Font, TextCfg}, texture::{sprite::Sprite, Texture2D, TextureHandle}, RectSubmitCmd, WHITE_TEX}};
 
 use super::{hash, layout::{horizontal::UIHorizontalLayout, vertical::UIVerticalLayout}, Anchor, UIHash, UIWidget};
 
@@ -102,6 +102,56 @@ impl<'a> UIArea<'a> {
         scope.draw_rect(RectSubmitCmd {
             pos, rot, extents,
             tint, texture, uv_rect,
+        });
+    }
+
+    pub fn draw_9_patch(
+        &self,
+        anchor: Anchor,
+        offset: vec2,
+        rot: f32,
+        extents: vec2,
+        sprite: &Sprite
+    ) {
+        let scope = unsafe { self.scope.as_mut().unwrap_unchecked() };
+
+        let pivot = anchor.local_pivot();
+        let pos = self.rect.start.clerp(self.rect.end, pivot) + offset;
+        scope.set_pivot(pivot);
+        
+        scope.draw_9_patch(NinePatchSubmitCmd {
+            pos,
+            rot,
+            extents,
+            tint: RGBA32::WHITE,
+            sprite:sprite.clone(),
+            corner_scaling: 1.0,
+        });
+    }
+
+    pub fn draw_9_patch_ext(
+        &self,
+        anchor: Anchor,
+        offset: vec2,
+        rot: f32,
+        extents: vec2,
+        tint: RGBA32,
+        sprite: &Sprite,
+        corner_scaling: f32
+    ) {
+        let scope = unsafe { self.scope.as_mut().unwrap_unchecked() };
+
+        let pivot = anchor.local_pivot();
+        let pos = self.rect.start.clerp(self.rect.end, pivot) + offset;
+        scope.set_pivot(pivot);
+        
+        scope.draw_9_patch(NinePatchSubmitCmd {
+            pos,
+            rot,
+            extents,
+            tint,
+            sprite:sprite.clone(),
+            corner_scaling,
         });
     }
 
