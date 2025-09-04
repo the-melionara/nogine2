@@ -18,4 +18,5 @@ pub struct TextCfg<'a> {
     pub ver_alignment: VerTextAlign,
     pub word_wrap: bool,
     pub rich_text: bool,
+    pub progress: Option<usize>,
 }

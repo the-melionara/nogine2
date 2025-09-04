@@ -249,6 +249,7 @@ impl RenderScope {
                 ver_alignment: self.ver_alignment,
                 word_wrap: self.word_wrap,
                 rich_text: self.rich_text,
+                progress: None,
             },
             text
         );
@@ -278,6 +279,7 @@ impl RenderScope {
         self.rich_text_commands.clear();
         let mut rt_index = 0usize;
         let mut char_index = 0usize;
+        let mut pindex = 0usize;
         
         let (dy0, mut line_separation) = cfg.ver_alignment.dy0_and_spaces(
             cfg.extents.1,
@@ -294,7 +296,7 @@ impl RenderScope {
         std::mem::swap(&mut charquad_out, &mut self.charquad_out);
 
         self.text_engine.advance_y(dy0);
-        for (i, line) in sanitized_text.lines().enumerate() {
+        'outer: for (i, line) in sanitized_text.lines().enumerate() {
             let (dx0, mut space_width) = cfg.hor_alignment.dx0_and_spaces(
                 cfg.extents.0,
                 space_width,
@@ -305,6 +307,12 @@ impl RenderScope {
             self.text_engine.advance_x(dx0);
             
             for c in line.chars() {
+                if let Some(max) = cfg.progress {
+                    if pindex >= max {
+                        break 'outer;
+                    }
+                }
+                
                 // Rich Text Command thingy
                 while let Some(x) = rt_stack.get(rt_index) {
                     if x.char_index <= char_index {
@@ -322,6 +330,7 @@ impl RenderScope {
                     // No char_separation because it is already included in space_width
                     self.text_engine.advance_x(space_width);
                     char_index += c.len_utf8();
+                    pindex += 1;
                     continue;
                 }
             
@@ -378,9 +387,11 @@ impl RenderScope {
                     // <<<<<<<<<<<<<<<<<<<<<<========================>>>>>>>>>>>>>>>>>>>>>>>>>> //
                 }
                 char_index += c.len_utf8();
+                pindex += 1;
             }
             self.text_engine.advance_y(line_separation);
             char_index += 1;
+            pindex += 1;
         }
 
         self.text_engine.swap_sanitized_text(&mut sanitized_text); // Return the real buffer
