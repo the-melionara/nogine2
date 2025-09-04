@@ -85,6 +85,11 @@ impl Window {
     pub fn pre_tick<'a>(&'a mut self, setup: FrameSetup<'a>) {
         assert_main_thread!(self);
 
+        Input::flush();
+        unsafe {
+            glfwPollEvents();
+        }
+
         let pipeline = if let Some(pipeline) = setup.pipeline {
             unsafe { std::mem::transmute::<_, *const dyn RenderPipeline>(pipeline) } // Hack to stop misdiagnosis from rust (?)
         } else {
@@ -107,7 +112,6 @@ impl Window {
     pub fn post_tick(&mut self) -> RenderStats {
         assert_main_thread!(self);
 
-        Input::flush();
         let render_stats = global_end_render(self.fb_size());
         unsafe {
             glfwSwapBuffers(self.glfw_window);
