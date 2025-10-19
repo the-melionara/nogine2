@@ -44,6 +44,26 @@ impl<'a> UIArea<'a> {
         });
     }
 
+    pub fn draw_rect_ext(
+        &self,
+        anchor: Anchor,
+        offset: vec2,
+        rot: f32,
+        extents: vec2,
+        colors: [RGBA32; 4]
+    ) {
+        let scope = unsafe { self.scope.as_mut().unwrap_unchecked() };
+
+        let pivot = anchor.local_pivot();
+        let pos = self.rect.start.clerp(self.rect.end, pivot) + offset;
+        scope.set_pivot(pivot);
+        
+        scope.draw_rect(RectSubmitCmd {
+            pos, rot, extents,
+            tint: colors, texture: WHITE_TEX.get(), uv_rect: Rect::IDENT,
+        });
+    }
+
     pub fn draw_texture(
         &self,
         anchor: Anchor,
