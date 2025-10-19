@@ -1,10 +1,25 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//             ░███    ░██                       ░██                       ░██████             //
+//   ░██   ░██ ░████   ░██                                                ░██   ░██ ░██  ░██   //
+//  ░██   ░██  ░██░██  ░██  ░███████   ░████████ ░██░████████   ░███████        ░██  ░██  ░██  //
+// ░██   ░██   ░██ ░██ ░██ ░██    ░██ ░██    ░██ ░██░██    ░██ ░██    ░██   ░█████    ░██  ░██ //
+//  ░██   ░██  ░██  ░██░██ ░██    ░██ ░██    ░██ ░██░██    ░██ ░█████████  ░██       ░██  ░██  //
+//   ░██   ░██ ░██   ░████ ░██    ░██ ░██   ░███ ░██░██    ░██ ░██        ░██       ░██  ░██   //
+//             ░██    ░███  ░███████   ░█████░██ ░██░██    ░██  ░███████  ░████████            //
+//                                           ░██                                               //
+//                                     ░███████                                                //
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Re-exports from nogine2-core
-pub use nogine2_core::{crash, log_info, log_warn, log_error, math, bytesize, native_dialog, unwrap_opt, unwrap_res, heap};
+pub use nogine2_core::{
+    bytesize, crash, heap, log_error, log_info, log_warn, math, native_dialog, unwrap_opt,
+    unwrap_res,
+};
 
 // Re-exports from nogine2-window
-pub use nogine2_window::{window, input};
+pub use nogine2_window::{input, window};
 
 // Re-exports from nogine2-graphics
-pub use nogine2_graphics::{graphics, colors};
+pub use nogine2_graphics::{colors, graphics};
 
 pub mod prelude;
