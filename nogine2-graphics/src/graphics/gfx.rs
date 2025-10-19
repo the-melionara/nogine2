@@ -28,3 +28,11 @@ pub fn screen_to_world_pos(pos: vec2) -> vec2 {
     return unit_space.scale(cam.extents * 0.5) + cam.center;
 }
 
+/// Converts screen position space delta to world space position delta.
+pub fn screen_to_world_delta(delta: vec2) -> vec2 {
+    let cam = Graphics::camera();
+    let res = vec2::from(Graphics::target_res());
+
+    let unit_space = delta.inv_scale(res).scale(vec2(1.0, -1.0)); // 0 to 1
+    return unit_space.scale(cam.extents);
+}
