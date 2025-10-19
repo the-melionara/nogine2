@@ -36,3 +36,10 @@ impl DRect {
         Self { start: a.min(b), end: a.max(b) }
     }
 }
+
+impl Rect {
+    pub fn intersects(self, other: Self) -> bool {
+        return self.start.cle(other.end).all()
+            && other.start.cle(self.end).all();
+    }
+}
