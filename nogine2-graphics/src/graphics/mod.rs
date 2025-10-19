@@ -359,6 +359,15 @@ pub struct CameraData {
     pub extents: vec2,
 }
 
+impl CameraData {
+    pub fn rect(&self) -> Rect {
+        return Rect {
+            start: self.center - self.extents * 0.5,
+            end: self.center + self.extents * 0.5,
+        };
+    }
+}
+
 impl Default for CameraData {
     fn default() -> Self {
         Self { center: vec2::ZERO, extents: vec2::ONE }
