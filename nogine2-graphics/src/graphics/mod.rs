@@ -214,6 +214,18 @@ impl Graphics {
         graphics.active_scope.set_font_size(font_size);
     }
 
+    /// Returns the font col.
+    pub fn font_col() -> RGBA32 {
+        let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };
+        return graphics.active_scope.font_col();
+    }
+
+    /// Sets the font col.
+    pub fn set_font_col(font_col: RGBA32) {
+        let Ok(mut graphics) = GRAPHICS.write() else { crash!("Couldn't access Graphics singleton!") };
+        graphics.active_scope.set_font_col(font_col);
+    }
+
     /// Returns the horizontal alignment for text.
     pub fn text_hor_alignment() -> HorTextAlign {
         let Ok(graphics) = GRAPHICS.read() else { crash!("Couldn't access Graphics singleton!") };

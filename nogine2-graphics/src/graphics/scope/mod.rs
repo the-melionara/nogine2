@@ -5,7 +5,7 @@ use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{lerp::Lerp
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, text::{align::{HorTextAlign, VerTextAlign}, font::Font}, texture::rendertex::RenderTexture, vertex::BatchVertex}, TIME_TS};
 
-use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::TextStyle, rich::{CharQuad, CharVert, RichTextContext}, TextCfg}, texture::{sprite::Sprite, TextureHandle}, CameraData, Graphics, WHITE_TEX};
+use super::{batch::BatchData, blending::BlendingMode, defaults::DefaultMaterials, material::Material, pipeline::{DefaultPipeline, RenderPipeline, RenderStats}, text::{engine::{helpers::GraphicMetrics, TextEngine}, font::TextStyle, rich::{CharQuad, CharVert, RichTextContext}, TextCfg}, texture::{sprite::Sprite, TextureHandle}, CameraData, Graphics };
 
 static DEFAULT_PIPELINE: DefaultPipeline = DefaultPipeline;
 
@@ -42,6 +42,7 @@ pub struct RenderScope {
     ver_alignment: VerTextAlign,
     word_wrap: bool,
     rich_text: bool,
+    font_col: RGBA32,
     
     /// Indices of rtc in the current text being processed
     rich_text_commands: Vec<usize>,
@@ -72,6 +73,7 @@ impl RenderScope {
             ver_alignment: VerTextAlign::Top,
             word_wrap: false,
             rich_text: false,            
+            font_col: RGBA32::WHITE,
 
             rich_text_commands: Vec::new(),
             charquad_out: Vec::new(),
@@ -244,6 +246,7 @@ impl RenderScope {
                 scale: vec2::ONE,
                 extents,
                 font_size: self.font_size,
+                font_col: self.font_col,
                 font,
                 hor_alignment: self.hor_alignment,
                 ver_alignment: self.ver_alignment,
@@ -351,6 +354,7 @@ impl RenderScope {
                         vec2::ZERO,
                         &sprite,
                         scale,
+                        cfg.font_col,
                     );
 
                     let (time, ts) = {
@@ -493,6 +497,16 @@ impl RenderScope {
     /// Sets the font size.
     pub fn set_font_size(&mut self, font_size: f32) {
         self.font_size = font_size;
+    }
+
+    /// Returns the font col.
+    pub fn font_col(&self) -> RGBA32 {
+        self.font_col
+    }
+
+    /// Sets the font col.
+    pub fn set_font_col(&mut self, font_col: RGBA32) {
+        self.font_col = font_col;
     }
 
     /// Returns the horizontal alignment for text.
@@ -656,17 +670,17 @@ struct PipelinePtr(*const dyn RenderPipeline);
 unsafe impl Sync for PipelinePtr {}
 unsafe impl Send for PipelinePtr {}
 
-fn initial_charquad(offset: vec2, sprite: &Sprite, scale: f32) -> CharQuad {
+fn initial_charquad(offset: vec2, sprite: &Sprite, scale: f32, color: RGBA32) -> CharQuad {
     let rect = Rect::from_points(
         offset,
         offset + vec2::from(sprite.dims()) * scale,
     );
 
     return CharQuad {
-        ld: CharVert { pos: rect.ld(), color: RGBA32::WHITE, user_data: 0 },
-        lu: CharVert { pos: rect.lu(), color: RGBA32::WHITE, user_data: 0 },
-        ru: CharVert { pos: rect.ru(), color: RGBA32::WHITE, user_data: 0 },
-        rd: CharVert { pos: rect.rd(), color: RGBA32::WHITE, user_data: 0 },
+        ld: CharVert { pos: rect.ld(), color, user_data: 0 },
+        lu: CharVert { pos: rect.lu(), color, user_data: 0 },
+        ru: CharVert { pos: rect.ru(), color, user_data: 0 },
+        rd: CharVert { pos: rect.rd(), color, user_data: 0 },
         sprite: sprite.clone(),
     };
 }

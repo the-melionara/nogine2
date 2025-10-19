@@ -321,6 +321,18 @@ impl<'a> UIArea<'a> {
         scope.set_font_size(font_size);
     }
 
+    /// Returns the font col.
+    pub fn font_col(&self) -> RGBA32 {
+        let scope = unsafe { self.scope.as_ref().unwrap_unchecked() };
+        return scope.font_col();
+    }
+
+    /// Sets the font col.
+    pub fn set_font_col(&self, font_col: RGBA32) {
+        let scope = unsafe { self.scope.as_mut().unwrap_unchecked() };
+        scope.set_font_col(font_col);
+    }
+
     /// Returns the horizontal alignment for text.
     pub fn text_hor_alignment(&self) -> HorTextAlign {
         let scope = unsafe { self.scope.as_ref().unwrap_unchecked() };

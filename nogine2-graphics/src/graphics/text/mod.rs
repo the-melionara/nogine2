@@ -2,6 +2,8 @@ use align::{HorTextAlign, VerTextAlign};
 use font::Font;
 use nogine2_core::math::vector2::vec2;
 
+use crate::colors::rgba::RGBA32;
+
 pub mod font;
 pub mod align;
 pub mod rich;
@@ -14,6 +16,7 @@ pub struct TextCfg<'a> {
     pub extents: vec2,
     pub font_size: f32,
     pub font: &'a dyn Font,
+    pub font_col: RGBA32,
     pub hor_alignment: HorTextAlign,
     pub ver_alignment: VerTextAlign,
     pub word_wrap: bool,
