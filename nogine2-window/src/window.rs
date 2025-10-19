@@ -115,7 +115,6 @@ impl Window {
         let render_stats = global_end_render(self.fb_size());
         unsafe {
             glfwSwapBuffers(self.glfw_window);
-            glfwPollEvents();
         }
 
         POST_TICK_EVS.read().unwrap().call(self);
