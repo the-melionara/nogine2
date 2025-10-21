@@ -91,24 +91,27 @@ impl TextEngine {
             batch_data.push(
                 BatchPushCmd::Triangles {
                     verts: &[
-                        BatchVertex {
+                        BatchVertex { // Left Down
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[0], 1.0)).xy(),
                             tint: b.cols[0],
                             uv: b.uvs.lu(),
+                            uv1: vec2(0.0, 1.0),
                             tex_id: 0,
                             user_data: 0,
                         },
-                        BatchVertex {
+                        BatchVertex { // Left Up
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[1], 1.0)).xy(),
                             tint: b.cols[1],
                             uv: b.uvs.ld(),
+                            uv1: vec2(0.0, 0.0),
                             tex_id: 0,
                             user_data: 0,
                         },
-                        BatchVertex {
+                        BatchVertex { // Right Up
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[2], 1.0)).xy(),
                             tint: b.cols[2],
                             uv: b.uvs.rd(),
+                            uv1: vec2(1.0, 0.0),
                             tex_id: 0,
                             user_data: 0,
                         },
@@ -116,6 +119,7 @@ impl TextEngine {
                             pos: (&transform * vec3::from_xy(b.offset + b.verts[3], 1.0)).xy(),
                             tint: b.cols[3],
                             uv: b.uvs.ru(),
+                            uv1: vec2(1.0, 1.0),
                             tex_id: 0,
                             user_data: 0,
                         },

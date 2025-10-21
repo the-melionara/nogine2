@@ -112,10 +112,38 @@ impl RenderScope {
     
         let user_data = self.user_data;
         let verts = &[
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[0], uv: uvs[0], tex_id: 0, user_data },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[1], uv: uvs[1], tex_id: 0, user_data },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[2], uv: uvs[2], tex_id: 0, user_data },
-            BatchVertex { pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(), tint: cmd.tint[3], uv: uvs[3], tex_id: 0, user_data },
+            BatchVertex { // Left Down
+                pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(),
+                tint: cmd.tint[0],
+                uv: uvs[0],
+                uv1: vec2(0.0, 1.0),
+                tex_id: 0,
+                user_data
+            },
+            BatchVertex { // Left Up
+                pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(),
+                tint: cmd.tint[1],
+                uv: uvs[1],
+                uv1: vec2(0.0, 0.0),
+                tex_id: 0,
+                user_data
+            },
+            BatchVertex { // Right Up
+                pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(),
+                tint: cmd.tint[2],
+                uv: uvs[2],
+                uv1: vec2(1.0, 0.0),
+                tex_id: 0,
+                user_data
+            },
+            BatchVertex { // Right Down
+                pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(),
+                tint: cmd.tint[3],
+                uv: uvs[3],
+                uv1: vec2(1.0, 1.0),
+                tex_id: 0,
+                user_data
+            },
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
    
@@ -131,7 +159,12 @@ impl RenderScope {
 
         let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let verts = cmd.points.iter().map(|(pos, col)|
-            BatchVertex { pos: (*pos).scale(vec2(1.0, y_scaling)), tint: *col, uv: vec2::ZERO, tex_id: 0, user_data: self.user_data }
+            BatchVertex {
+                pos: (*pos).scale(vec2(1.0, y_scaling)),
+                tint: *col,
+                user_data: self.user_data,
+                ..Default::default()
+            }
         ).collect::<Vec<_>>();
 
         let blending = self.blending;
@@ -147,8 +180,18 @@ impl RenderScope {
         let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let user_data = self.user_data;
         let verts = [
-            BatchVertex { pos: cmd.verts[0].scale(vec2(1.0, y_scaling)), tint: cmd.cols[0], uv: vec2::ZERO, tex_id: 0, user_data },
-            BatchVertex { pos: cmd.verts[1].scale(vec2(1.0, y_scaling)), tint: cmd.cols[1], uv: vec2::ZERO, tex_id: 0, user_data },
+            BatchVertex {
+                pos: cmd.verts[0].scale(vec2(1.0, y_scaling)),
+                tint: cmd.cols[0],
+                user_data,
+                ..Default::default()
+            },
+            BatchVertex {
+                pos: cmd.verts[1].scale(vec2(1.0, y_scaling)),
+                tint: cmd.cols[1],
+                user_data,
+                ..Default::default()
+            },
         ];
 
         let blending = self.blending;
@@ -198,6 +241,7 @@ impl RenderScope {
                 pos: (&tf_mat * vec3::from_xy(pos - self.pivot, 1.0)).xy(),
                 tint: cmd.tint,
                 uv: bilinear(uv_rect, uv, inverted_y),
+                uv1: uv,
                 tex_id: 0,
                 user_data
             };
