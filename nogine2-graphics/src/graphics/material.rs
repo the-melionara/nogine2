@@ -3,7 +3,7 @@ use std::{cell::RefCell, ffi::CStr, sync::Arc};
 use nogine2_core::{log_error, main_thread::test_main_thread, math::{vector2::{ivec2, uvec2, vec2}, vector3::{ivec3, uvec3, vec3}, vector4::{ivec4, uvec4, vec4}}};
 use uuid::Uuid;
 
-use crate::gl_wrapper::gl_uniform;
+use crate::{gl_wrapper::gl_uniform, graphics::texture::TextureHandle};
 
 use super::shader::Shader;
 
@@ -27,12 +27,32 @@ impl Material {
     }
 
     /// Sets the value of a uniform.
+    /// Returns `true` if successful.
     pub fn set_uniform(&self, name: &CStr, uniform: Uniform) -> bool {
         test_main_thread();
         let mut borrow = self.uniforms.borrow_mut();
         if let Some(loc) = self.shader.uniform_loc(name) {
             borrow.set_uniform(loc, uniform);
+            return true;
         }
+        return false;
+    }
+
+    /// Sets the value of a uniform sampler.
+    /// Returns `true` if successful.
+    pub fn set_sampler(&self, name: &CStr, handle: TextureHandle) -> bool {
+        test_main_thread();
+        let mut borrow = self.uniforms.borrow_mut();
+        let Some(loc) = self.shader.uniform_loc(name) else {
+            return false;
+        };
+
+        let Some(index) = self.shader.sampler_index(loc) else {
+            return false;
+        };
+        
+        borrow.set_sampler(loc, index, handle);
+        return true;
     }
 
     pub(crate) fn use_material(&self) -> bool {
@@ -42,6 +62,7 @@ impl Material {
     pub(crate) fn uniform_loc(&self, name: &CStr) -> Option<i32> {
         self.shader.uniform_loc(name)
     }
+
     pub(crate) fn sampler_count(&self) -> usize {
         self.shader.sampler_count()
     }
@@ -54,11 +75,15 @@ unsafe impl Send for Material { }
 #[derive(Debug)]
 struct MaterialUniformHolder {
     uniforms: Vec<(i32, Uniform)>,
+    samplers: Vec<(i32, Option<TextureHandle>)>,
 }
 
 impl MaterialUniformHolder {
-    const fn new() -> Self {
-        Self { uniforms: Vec::new() }
+    fn new(sampler_count: usize) -> Self {
+        Self {
+            uniforms: Vec::new(),
+            samplers: vec![(-1, None); sampler_count]
+        }
     }
 
     fn set_uniform(&mut self, loc: i32, uniform: Uniform) {
@@ -68,7 +93,12 @@ impl MaterialUniformHolder {
         }
     }
 
+    fn set_sampler(&mut self, loc: i32, index: usize, handle: TextureHandle) {
+        self.samplers[index] = (loc, Some(handle));
+    }
+
     fn enable(&self) -> bool {
+        // Regular uniforms
         for (loc, val) in self.uniforms.iter().copied() {
             match val {
                 Uniform::Int(x) => gl_uniform::set_i32(loc, x),
@@ -87,6 +117,19 @@ impl MaterialUniformHolder {
 
             if gl_uniform::uniforms_failed() {
                 log_error!("Couldn't set uniform in location '{loc}' (value was {val:?})!");
+                return false;
+            }
+        }
+
+        // Sampler uniforms
+        for (i, (loc, handle)) in self.samplers.iter().enumerate() {
+            gl_uniform::set_i32(*loc, i as i32);
+            if let Some(handle) = handle {
+                handle.bind_to(i as u32);
+            }
+            
+            if gl_uniform::uniforms_failed() {
+                log_error!("Couldn't set sampler uniform!");
                 return false;
             }
         }

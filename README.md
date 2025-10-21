@@ -10,7 +10,7 @@ Nogine2 is **HIGHLY EXPERIMENTAL AND NOT BATTLE TESTED**. For an even more unusa
 - [x] Text in UI
 - [x] UI panels
 - [ ] UI input
-- [ ] Texture uniforms
+- [x] Texture uniforms
 
 ## Audio
 - [ ] Mono audio

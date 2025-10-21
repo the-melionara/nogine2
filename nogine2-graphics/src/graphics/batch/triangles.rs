@@ -9,6 +9,7 @@ pub struct TriBatchRenderCall {
     textures: Vec<TextureHandle>,
     blending: BlendingMode,
     material: Arc<Material>,
+    tex_offset: usize,
 }
 
 impl TriBatchRenderCall {
@@ -16,7 +17,13 @@ impl TriBatchRenderCall {
     const TEXTURES: [i32; Self::MAX_TEXTURES] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     
     pub fn new(buffers: TriBatchBuffers, blending: BlendingMode, material: Arc<Material>) -> Self {
-        Self { buffers, textures: Vec::new(), blending, material }
+        Self {
+            buffers,
+            textures: Vec::new(),
+            blending,
+            tex_offset: material.sampler_count(),
+            material,
+        }
     }
 
     pub fn render(&self, view_mat: &mat3) {
@@ -27,8 +34,9 @@ impl TriBatchRenderCall {
             return;
         }
 
+        let sampler_count = self.material.sampler_count();
         for (i, t) in self.textures.iter().enumerate() {
-            t.bind_to(i as u32);
+            t.bind_to((i + sampler_count) as u32); // offseted to avoid uniform samplers
         }
     
         if let Some(view_mat_loc) = self.material.uniform_loc(c"uViewMat") {
@@ -51,11 +59,13 @@ impl TriBatchRenderCall {
     }
 
     pub fn allows(&self, verts_len: usize, indices_len: usize, texture: &TextureHandle, blending: BlendingMode, material: &Arc<Material>) -> bool {
-        self.buffers.fits(verts_len, indices_len) &&
-            (self.textures.len() < Self::MAX_TEXTURES || self.textures.contains(texture)) &&
-            self.blending == blending &&
-            *self.material == **material
-
+        self.buffers.fits(verts_len, indices_len)
+            && (
+                self.textures.len() + self.tex_offset < Self::MAX_TEXTURES
+                    || self.textures.contains(texture)
+            )
+            && self.blending == blending
+            && *self.material == **material
     }
 
     pub fn push(&mut self, verts: &mut [BatchVertex], indices: &mut [u16], texture: TextureHandle) {
@@ -65,7 +75,7 @@ impl TriBatchRenderCall {
                 self.textures.push(texture);
                 (self.textures.len() - 1) as u32
             },
-        };
+        } + self.tex_offset as u32;
 
         for v in &mut *verts {
             v.tex_id = tex_id;
