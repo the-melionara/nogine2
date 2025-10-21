@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ffi::CStr, sync::Arc};
 
 use nogine2_core::{assert_expr, main_thread::test_main_thread};
 
@@ -49,6 +49,7 @@ impl SubShader {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Shader {
     gl_obj: GlProgram,
+    samplers: Vec<u32>,
 }
 
 impl Shader {
@@ -58,7 +59,9 @@ impl Shader {
         assert_expr!(frag.typ() == SubShaderType::Fragment, "Vertex subshader must actually be a vertex subshader!");
 
         let gl_obj = GlProgram::new(&[&vert.gl_obj, &frag.gl_obj])?;
-        return Some(Arc::new(Self { gl_obj }));
+        let samplers = gl_obj.get_samplers();
+        
+        return Some(Arc::new(Self { gl_obj, samplers }));
     }
 
     pub(crate) fn use_shader(&self) -> bool {
@@ -68,5 +71,13 @@ impl Shader {
     pub(crate) fn uniform_loc(&self, name: &CStr) -> Option<i32> {
         test_main_thread();
         return gl_uniform_loc(&self.gl_obj, name);
+    }
+
+    pub(crate) fn sampler_index(&self, location: i32) -> Option<usize> {
+        return self.samplers.iter().position(|x| *x as i32 == location);
+    }
+
+    pub(crate) fn sampler_count(&self) -> usize {
+        return self.samplers.len();
     }
 }

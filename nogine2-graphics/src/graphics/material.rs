@@ -1,4 +1,4 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{cell::RefCell, ffi::CStr, sync::Arc};
 
 use nogine2_core::{log_error, main_thread::test_main_thread, math::{vector2::{ivec2, uvec2, vec2}, vector3::{ivec3, uvec3, vec3}, vector4::{ivec4, uvec4, vec4}}};
 use uuid::Uuid;
@@ -17,7 +17,13 @@ pub struct Material {
 
 impl Material {
     pub fn new(shader: Arc<Shader>) -> Arc<Self> {
-        Arc::new(Self { uuid: Uuid::new_v4(), shader, uniforms: RefCell::new(MaterialUniformHolder::new()) })
+        let sampler_count = shader.sampler_count();
+        
+        return Arc::new(Self {
+            uuid: Uuid::new_v4(),
+            shader,
+            uniforms: RefCell::new(MaterialUniformHolder::new(sampler_count))
+        });
     }
 
     /// Sets the value of a uniform.
@@ -35,6 +41,9 @@ impl Material {
 
     pub(crate) fn uniform_loc(&self, name: &CStr) -> Option<i32> {
         self.shader.uniform_loc(name)
+    }
+    pub(crate) fn sampler_count(&self) -> usize {
+        self.shader.sampler_count()
     }
 }
 
