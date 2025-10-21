@@ -11,6 +11,7 @@ Nogine2 is **HIGHLY EXPERIMENTAL AND NOT BATTLE TESTED**. For an even more unusa
 - [x] UI panels
 - [ ] UI input
 - [x] Texture uniforms
+- [ ] Arbitrary Quad and Triangle Rendering
 
 ## Audio
 - [ ] Mono audio
