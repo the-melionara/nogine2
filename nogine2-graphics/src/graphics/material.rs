@@ -20,8 +20,8 @@ impl Material {
         Arc::new(Self { uuid: Uuid::new_v4(), shader, uniforms: RefCell::new(MaterialUniformHolder::new()) })
     }
 
-    /// Sets the value of a uniform. Will panic if `name` is not zero terminated.
-    pub fn set_uniform(&self, name: &[u8], uniform: Uniform) {
+    /// Sets the value of a uniform.
+    pub fn set_uniform(&self, name: &CStr, uniform: Uniform) -> bool {
         test_main_thread();
         let mut borrow = self.uniforms.borrow_mut();
         if let Some(loc) = self.shader.uniform_loc(name) {
@@ -33,7 +33,7 @@ impl Material {
         self.shader.use_shader() && self.uniforms.borrow().enable()
     }
 
-    pub(crate) fn uniform_loc(&self, name: &[u8]) -> Option<i32> {
+    pub(crate) fn uniform_loc(&self, name: &CStr) -> Option<i32> {
         self.shader.uniform_loc(name)
     }
 }

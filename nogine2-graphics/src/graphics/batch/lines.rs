@@ -23,7 +23,7 @@ impl LnsBatchRenderCall {
             return;
         }
     
-        if let Some(view_mat_loc) = self.material.uniform_loc(b"uViewMat\0") {
+        if let Some(view_mat_loc) = self.material.uniform_loc(c"uViewMat") {
             gl_uniform::set_mat3(view_mat_loc, view_mat);
         }
 

@@ -105,7 +105,7 @@ impl RenderTexture {
             return;
         }
 
-        if let Some(textures_loc) = material.uniform_loc(b"uTextures\0") {
+        if let Some(textures_loc) = material.uniform_loc(c"uTextures") {
             gl_uniform::set_i32_arr(textures_loc, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
         }
 

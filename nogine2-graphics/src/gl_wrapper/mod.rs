@@ -1,4 +1,4 @@
-use std::ffi::{c_char, c_void};
+use std::ffi::{c_void, CStr};
 
 use nogine2_core::{assert_expr, main_thread::test_main_thread, math::rect::IRect};
 use program::GlProgram;
@@ -93,11 +93,10 @@ pub fn gl_viewport(rect: IRect) {
     }
 }
 
-pub fn gl_uniform_loc(program: &GlProgram, name: &[u8]) -> Option<i32> {
+pub fn gl_uniform_loc(program: &GlProgram, name: &CStr) -> Option<i32> {
     test_main_thread();
-    assert_expr!(name.last().copied() == Some(b'\0'));
     unsafe {
-        let i = gl::GetUniformLocation(program.id(), name.as_ptr() as *const c_char);
+        let i = gl::GetUniformLocation(program.id(), name.as_ptr());
         if i < 0 {
             return None;
         } else {

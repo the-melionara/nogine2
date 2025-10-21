@@ -31,11 +31,11 @@ impl TriBatchRenderCall {
             t.bind_to(i as u32);
         }
     
-        if let Some(view_mat_loc) = self.material.uniform_loc(b"uViewMat\0") {
+        if let Some(view_mat_loc) = self.material.uniform_loc(c"uViewMat") {
             gl_uniform::set_mat3(view_mat_loc, view_mat);
         }
 
-        if let Some(textures_loc) = self.material.uniform_loc(b"uTextures\0") {
+        if let Some(textures_loc) = self.material.uniform_loc(c"uTextures") {
             gl_uniform::set_i32_arr(textures_loc, &Self::TEXTURES);
         }
 
