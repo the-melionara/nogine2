@@ -33,6 +33,8 @@ pub struct Window {
     last_frame: Instant,
     first_frame: Instant,
 
+    target_ts: Option<f32>,
+
     thread: ThreadId,
 }
 
@@ -58,6 +60,7 @@ impl Window {
             glfwSetCursorPosCallback(window, glfw_callbacks::cursor_pos_callback);
             glfwSetScrollCallback(window, glfw_callbacks::mouse_sroll_callback);
             glfwSetMouseButtonCallback(window, glfw_callbacks::mouse_button_callback);
+            glfwSwapInterval(0);
 
             if !init_graphics(|x| {
                 let cstring = CString::new(x).unwrap();
@@ -71,6 +74,7 @@ impl Window {
                 glfw_window: window,
                 title: cfg.title.to_string(),best_res: cfg.res,
                 ts: 0.02, first_frame: Instant::now(), last_frame: Instant::now(),
+                target_ts: None,
                 thread: std::thread::current().id()
             };
         }
@@ -119,6 +123,10 @@ impl Window {
 
         POST_TICK_EVS.read().unwrap().call(self);
 
+        if let Some(target_ts) = self.target_ts {
+            mixed_wait(target_ts, self.last_frame);
+        }
+
         self.ts = self.last_frame.elapsed().as_secs_f32();
         self.last_frame = Instant::now();
 
@@ -134,6 +142,13 @@ impl Window {
     pub fn set_vsync(&mut self, enabled: bool) {
         assert_main_thread!(self);
         unsafe { glfwSwapInterval(if enabled { 1 } else { 0 }) };
+    }
+
+    /// Sets target FPS.
+    pub fn set_target_fps(&mut self, fps: f32) {
+        assert_expr!(fps > 0.0, "FPS must be greater than 0!");
+
+        self.target_ts = Some(1.0 / fps);
     }
 
     /// Returns the elapsed time since the last frame in seconds.
@@ -255,4 +270,20 @@ impl Drop for Window {
         unsafe { glfwDestroyWindow(self.glfw_window) };
         deinit_glfw();
     }
+}
+
+/// Makes the thread sleep for a while and then does active waiting
+fn mixed_wait(target_ts: f32, last_frame: Instant) {
+    let diff = target_ts - last_frame.elapsed().as_secs_f32();
+    if diff <= 0.0 {
+        return;
+    }
+
+    // Passive wait
+    if diff > 0.002 { // ms
+        std::thread::sleep(Duration::from_secs_f32(diff - 0.001));
+    }
+
+    // Active wait
+    while last_frame.elapsed().as_secs_f32() < target_ts { }
 }
