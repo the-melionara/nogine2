@@ -23,18 +23,36 @@ pub struct BatchData {
     camera: CameraData,
 
     stats: BatchRenderStats,
+
+    // Reused vectors to reduce memory allocations per push
+    cached_verts: Vec<BatchVertex>,
+    cached_indices: Vec<u16>,
 }
 
 impl BatchData {
     pub const fn new() -> Self {
         Self {
-            render_calls: Vec::new(), pooled_buffers: BuffersPool::new(),
-            view_mat: mat3::IDENTITY, cam_rect: Rect::IDENT, snapping: vec2::ONE, camera: CameraData { center: vec2::ZERO, extents: vec2::ZERO }, target_res: uvec2::ZERO,
+            render_calls: Vec::new(),
+            pooled_buffers: BuffersPool::new(),
+            view_mat: mat3::IDENTITY,
+            cam_rect: Rect::IDENT,
+            snapping: vec2::ONE,
+            camera: CameraData { center: vec2::ZERO, extents: vec2::ZERO },
+            target_res: uvec2::ZERO,
             stats: BatchRenderStats::new(),
+
+            // Reused vecs
+            cached_verts: Vec::new(),
+            cached_indices: Vec::new(),
         }
     }
 
     pub fn push(&mut self, cmd: BatchPushCmd<'_>, culling_enabled: bool) {
+        // Clear caches
+        self.cached_verts.clear();
+        self.cached_indices.clear();
+
+        // Do the work
         match cmd {
             BatchPushCmd::Triangles { verts, indices, texture, blending, material } => {
                 if culling_enabled {
@@ -46,18 +64,19 @@ impl BatchData {
                 }
                 self.stats.rendered_submissions += 1;
 
-                let mut verts = verts.iter().copied().map(|mut x| {
+                // Cached to reduce alocations
+                self.cached_verts.extend(verts.iter().copied().map(|mut x| {
                     x.pos = snap(x.pos, self.snapping);
                     return x;
-                }).collect::<Vec<_>>();
-                let mut indices = indices.to_vec();
+                }));
+                self.cached_indices.extend_from_slice(indices);
 
                 self.stats.verts += verts.len();
                 self.stats.triangles += indices.len() / 3;
 
                 let cursor = self.tri_render_call_cursor(verts.len(), indices.len(), &texture, blending, material);
                 if let BatchRenderCall::Triangles(call) = &mut self.render_calls[cursor] {
-                    call.push(&mut verts, &mut indices, texture);
+                    call.push(&mut self.cached_verts, &mut self.cached_indices, texture);
                 }
             },
             BatchPushCmd::Points { verts, blending, material } => {
@@ -70,16 +89,17 @@ impl BatchData {
                 }
                 self.stats.rendered_submissions += 1;
  
-                let mut verts = verts.iter().copied().map(|mut x| {
+                // Cached to reduce alocations
+                self.cached_verts.extend(verts.iter().copied().map(|mut x| {
                     x.pos = snap(x.pos, self.snapping);
                     return x;
-                }).collect::<Vec<_>>();
+                }));
 
                 self.stats.verts += verts.len();
 
                 let cursor = self.pts_render_call_cursor(verts.len(), blending, material);
                 if let BatchRenderCall::Points(call) = &mut self.render_calls[cursor] {
-                    call.push(&mut verts);
+                    call.push(&mut self.cached_verts);
                 }
             },
             BatchPushCmd::Lines { mut verts, blending, material } => {
@@ -160,7 +180,7 @@ impl BatchData {
             }
         }
         let buffers = self.pooled_buffers.get_tri_buffer();
-        self.render_calls.push(BatchRenderCall::Triangles(TriBatchRenderCall::new(buffers, blending, material)));
+        self.render_calls.push(BatchRenderCall::Triangles(TriBatchRenderCall::new(buffers, blending, material))); // WARN: Possible allocation
         return self.render_calls.len() - 1;
     }
 

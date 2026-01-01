@@ -72,7 +72,7 @@ impl TriBatchRenderCall {
         let tex_id = match self.textures.iter().position(|t| t == &texture) {
             Some(i) => i as u32,
             None => {
-                self.textures.push(texture);
+                self.textures.push(texture); // WARN: Possible memory allocation
                 (self.textures.len() - 1) as u32
             },
         } + self.tex_offset as u32;
