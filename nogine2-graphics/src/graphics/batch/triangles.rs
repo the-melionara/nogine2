@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::UnsafeCell, sync::Arc};
 
 use nogine2_core::{log_error, math::mat3x3::mat3};
 
@@ -27,7 +27,7 @@ impl TriBatchRenderCall {
     }
 
     pub fn render(&self, view_mat: &mat3) {
-        let indices_len = self.buffers.bind_all();
+        let indices_len = self.buffers.upload_and_bind();
 
         if !self.material.use_material() {
             log_error!("GL_ERROR: Couldn't render!");
@@ -90,12 +90,16 @@ impl TriBatchRenderCall {
 }
 
 
+// SAFETY: Don't worry about it
+unsafe impl Sync for TriBatchBuffers { }
+
 pub struct TriBatchBuffers {
-    vbo: GlBuffer,
-    ebo: GlBuffer,
-    vlen: usize,
-    elen: usize,
+    buffers: UnsafeCell<InternalBufferData>,
     vao: GlVertexArray,
+
+    // Reused buffers for batching
+    vbo_origin: Vec<u8>,
+    ebo_origin: Vec<u8>,
 }
 
 impl TriBatchBuffers {
@@ -106,21 +110,40 @@ impl TriBatchBuffers {
 
     pub fn new() -> Self {
         let mut item = Self {
-            vbo: GlBuffer::preallocated(GlBufferTarget::GlArrayBuffer, (Self::MAX_VERTS * size_of::<BatchVertex>()) as isize, GlBufferUsage::DynamicDraw),
-            ebo: GlBuffer::preallocated(GlBufferTarget::GlElementArrayBuffer, (Self::MAX_INDICES * size_of::<u16>()) as isize, GlBufferUsage::DynamicDraw),
+            buffers: UnsafeCell::new(InternalBufferData {
+                vbo: GlBuffer::preallocated(GlBufferTarget::GlArrayBuffer, (Self::MAX_VERTS * size_of::<BatchVertex>()) as isize, GlBufferUsage::DynamicDraw),
+                ebo: GlBuffer::preallocated(GlBufferTarget::GlElementArrayBuffer, (Self::MAX_INDICES * size_of::<u16>()) as isize, GlBufferUsage::DynamicDraw),
+                vlen: 0, elen: 0,
+                uploaded: false,
+            }),
             vao: GlVertexArray::new(),
-            vlen: 0, elen: 0,
+
+            // Reused buffers for batching
+            vbo_origin: Vec::new(),
+            ebo_origin: Vec::new(),
         };
-        item.vao.bind_vbo(&item.vbo, BatchVertex::VERT_ATTRIB_DEFINITIONS);
+        item.vao.bind_vbo(&item.buffers.get_mut().vbo, BatchVertex::VERT_ATTRIB_DEFINITIONS);
         return item;
     }
 
     fn on_use_size(&self) -> usize {
-        self.vlen * size_of::<BatchVertex>() + self.elen * size_of::<u16>()
+        // SAFETY: Don't worry about it
+        let (vlen, elen) = unsafe {
+            let ptr = self.buffers.get().as_ref().unwrap_unchecked();
+            (ptr.vlen, ptr.elen)
+        };
+        
+        return vlen * size_of::<BatchVertex>() + elen * size_of::<u16>()
     }
 
     fn fits(&self, verts: usize, indices: usize) -> bool {
-        return self.vlen + verts <= Self::MAX_VERTS && self.elen + indices <= Self::MAX_INDICES;
+        // SAFETY: Don't worry about it
+        let (vlen, elen) = unsafe {
+            let ptr = self.buffers.get().as_ref().unwrap_unchecked();
+            (ptr.vlen, ptr.elen)
+        };
+
+        return vlen + verts <= Self::MAX_VERTS && elen + indices <= Self::MAX_INDICES;
     }
 
     fn push(&mut self, verts: &[BatchVertex], indices: &mut [u16]) {
@@ -129,24 +152,60 @@ impl TriBatchBuffers {
         }
 
         for i in &mut *indices {
-            *i += self.vlen as u16;
+            // SAFETY: Don't worry about it
+            *i += unsafe { self.buffers.get().as_mut().unwrap_unchecked().vlen as u16 }
         }
-        self.vbo.set(to_byte_slice(verts), (self.vlen * size_of::<BatchVertex>()) as isize);
-        self.ebo.set(to_byte_slice(indices), (self.elen * size_of::<u16>()) as isize);
 
-        self.vlen += verts.len();
-        self.elen += indices.len();
+        self.vbo_origin.extend_from_slice(to_byte_slice(verts));
+        self.ebo_origin.extend_from_slice(to_byte_slice(indices));
+
+        // SAFETY: Don't worry about it
+        unsafe {
+            let ptr = self.buffers.get().as_mut().unwrap_unchecked();
+
+            ptr.vlen += verts.len();
+            ptr.elen += indices.len();
+        };
     }
 
     /// Returns the indices count.
-    fn bind_all(&self) -> i32 {
-        self.vao.bind();
-        self.ebo.bind();
-        return self.elen as i32;
+    fn upload_and_bind(&self) -> i32 {
+        // SAFETY: Don't worry about it
+        unsafe {
+            let ptr = self.buffers.get().as_mut().unwrap_unchecked();
+
+            if !ptr.uploaded {
+                ptr.vbo.set(&self.vbo_origin, 0);
+                ptr.ebo.set(&self.ebo_origin, 0);
+                ptr.uploaded = true;
+            }
+        
+            self.vao.bind();
+            ptr.ebo.bind();
+            return ptr.elen as i32;
+        }
     }
 
     fn clear(&mut self) {
-        self.vlen = 0;
-        self.elen = 0;
+        // SAFETY: Don't worry about it
+        unsafe {
+            let ptr = self.buffers.get().as_mut().unwrap_unchecked();
+
+            ptr.vlen = 0;
+            ptr.elen = 0;
+            ptr.uploaded = false;
+        };
+
+        self.vbo_origin.clear();
+        self.ebo_origin.clear();
     }
+}
+
+struct InternalBufferData {
+    vbo: GlBuffer,
+    ebo: GlBuffer,
+    vlen: usize,
+    elen: usize,
+
+    uploaded: bool,
 }
