@@ -36,7 +36,23 @@ impl Color for RGBA32 {
 
 impl RGBA32 {
     pub const CLEAR: Self = Self(0.0, 0.0, 0.0, 0.0);
+
+    pub const fn from_rgba8(value: RGBA8) -> Self {
+        return Self(
+            value.0 as f32 / 255.0,
+            value.1 as f32 / 255.0,
+            value.2 as f32 / 255.0,
+            value.3 as f32 / 255.0,
+        );
+    }
 }
+
+impl From<RGBA8> for RGBA32 {
+    fn from(value: RGBA8) -> Self {
+        Self::from_rgba8(value)
+    }
+}
+
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -74,4 +90,19 @@ impl Color for RGBA8 {
 
 impl RGBA8 {
     pub const CLEAR: Self = Self(000, 000, 000, 000);
+
+    pub const fn from_rgba32(value: RGBA32) -> Self {
+        return Self(
+            (value.0 * 255.0) as u8,
+            (value.1 * 255.0) as u8,
+            (value.2 * 255.0) as u8,
+            (value.3 * 255.0) as u8,
+        );
+    }
+}
+
+impl From<RGBA32> for RGBA8 {
+    fn from(value: RGBA32) -> Self {
+        Self::from_rgba32(value)
+    }
 }
