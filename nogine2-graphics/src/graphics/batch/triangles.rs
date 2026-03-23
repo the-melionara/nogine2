@@ -78,7 +78,7 @@ impl TriBatchRenderCall {
         } + self.tex_offset as u32;
 
         for v in &mut *verts {
-            v.tex_id = tex_id;
+            v.set_tex_id(tex_id);
         }
 
         self.buffers.push(verts, indices);

@@ -7,7 +7,7 @@ layout(location = 0) out vec4 fCol;
 in vec4 vTint;
 in vec2 vUV;
 flat in uint vTexID;
-flat in int vUserData;
+flat in uint vUserData;
 
 uniform sampler2D uTextures[MAX_TEXTURES];
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bitflags::bitflags;
-use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{lerp::Lerp, mat3x3::mat3, rect::Rect, vector2::{ivec2, uvec2, vec2}, vector3::vec3}};
+use nogine2_core::{assert_expr, main_thread::test_main_thread, math::{lerp::Lerp, mat3x3::mat3, rect::Rect, vector2::{bvec2, ivec2, uvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::{rgba::RGBA32, Color}, graphics::{batch::BatchPushCmd, pipeline::SceneData, text::{align::{HorTextAlign, VerTextAlign}, font::Font}, texture::rendertex::RenderTexture, vertex::BatchVertex}, TIME_TS};
 
@@ -26,7 +26,7 @@ pub struct RenderScope {
     tex_ppu: f32,
     blending: BlendingMode,
     pivot: vec2,
-    user_data: i32,
+    user_data: u16,
     material: Option<Arc<Material>>,
 
     text_engine: TextEngine,
@@ -112,38 +112,38 @@ impl RenderScope {
     
         let user_data = self.user_data;
         let verts = &[
-            BatchVertex { // Left Down
-                pos: (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(),
-                tint: cmd.tint[0],
-                uv: uvs[0],
-                uv1: vec2(0.0, 1.0),
-                tex_id: 0,
+            BatchVertex::new( // Left Down
+                (&tf_mat * vec3::from_xy(vec2(0.0, 0.0) - self.pivot, 1.0)).xy(),
+                cmd.tint[0],
+                uvs[0],
+                bvec2(false, true),
+                0,
                 user_data
-            },
-            BatchVertex { // Left Up
-                pos: (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(),
-                tint: cmd.tint[1],
-                uv: uvs[1],
-                uv1: vec2(0.0, 0.0),
-                tex_id: 0,
+            ),
+            BatchVertex::new( // Left Up
+                (&tf_mat * vec3::from_xy(vec2(0.0, 1.0) - self.pivot, 1.0)).xy(),
+                cmd.tint[1],
+                uvs[1],
+                bvec2(false, false),
+                0,
                 user_data
-            },
-            BatchVertex { // Right Up
-                pos: (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(),
-                tint: cmd.tint[2],
-                uv: uvs[2],
-                uv1: vec2(1.0, 0.0),
-                tex_id: 0,
+            ),
+            BatchVertex::new( // Right Up
+                (&tf_mat * vec3::from_xy(vec2(1.0, 1.0) - self.pivot, 1.0)).xy(),
+                cmd.tint[2],
+                uvs[2],
+                bvec2(true, false),
+                0,
                 user_data
-            },
-            BatchVertex { // Right Down
-                pos: (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(),
-                tint: cmd.tint[3],
-                uv: uvs[3],
-                uv1: vec2(1.0, 1.0),
-                tex_id: 0,
+            ),
+            BatchVertex::new( // Right Down
+                (&tf_mat * vec3::from_xy(vec2(1.0, 0.0) - self.pivot, 1.0)).xy(),
+                cmd.tint[3],
+                uvs[3],
+                bvec2(true, true),
+                0,
                 user_data
-            },
+            ),
         ];
         let indices = &[0, 1, 2, 2, 3, 0];
    
@@ -159,12 +159,14 @@ impl RenderScope {
 
         let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let verts = cmd.points.iter().map(|(pos, col)|
-            BatchVertex {
-                pos: (*pos).scale(vec2(1.0, y_scaling)),
-                tint: *col,
-                user_data: self.user_data,
-                ..Default::default()
-            }
+            BatchVertex::new(
+                (*pos).scale(vec2(1.0, y_scaling)), // pos
+                *col,                               // tint
+                vec2::ZERO,                         // uv
+                bvec2(false, false),                // uv1
+                0,                                  // tex_id
+                self.user_data,                     // user_data
+            )
         ).collect::<Vec<_>>();
 
         let blending = self.blending;
@@ -180,18 +182,22 @@ impl RenderScope {
         let y_scaling = if self.cfg_flags.contains(RenderScopeCfgFlags::POSITIVE_Y_IS_DOWN) { -1.0 } else { 1.0 };
         let user_data = self.user_data;
         let verts = [
-            BatchVertex {
-                pos: cmd.verts[0].scale(vec2(1.0, y_scaling)),
-                tint: cmd.cols[0],
-                user_data,
-                ..Default::default()
-            },
-            BatchVertex {
-                pos: cmd.verts[1].scale(vec2(1.0, y_scaling)),
-                tint: cmd.cols[1],
-                user_data,
-                ..Default::default()
-            },
+            BatchVertex::new(
+                cmd.verts[0].scale(vec2(1.0, y_scaling)), // pos
+                cmd.cols[0],                              // tint
+                vec2::ZERO,                               // uv
+                bvec2(false, false),                      // uv1
+                0,                                        // tex_id
+                user_data,                                // user_data
+            ),
+            BatchVertex::new(
+                cmd.verts[1].scale(vec2(1.0, y_scaling)), // pos
+                cmd.cols[1],                              // tint
+                vec2::ZERO,                               // uv
+                bvec2(false, false),                      // uv1
+                0,                                        // tex_id
+                user_data,                                // user_data
+            ),
         ];
 
         let blending = self.blending;
@@ -237,14 +243,14 @@ impl RenderScope {
             uv.1 = 1.0 - uv.1;
 
             let pos = diag[i % 4].xvec() + diag[i / 4].yvec();
-            verts[i] = BatchVertex {
-                pos: (&tf_mat * vec3::from_xy(pos - self.pivot, 1.0)).xy(),
-                tint: cmd.tint,
-                uv: bilinear(uv_rect, uv, inverted_y),
-                uv1: uv,
-                tex_id: 0,
-                user_data
-            };
+            verts[i] = BatchVertex::new(
+                (&tf_mat * vec3::from_xy(pos - self.pivot, 1.0)).xy(), // pos
+                cmd.tint,                                              // tint
+                bilinear(uv_rect, uv, inverted_y),                     // uv
+                bvec2(uv.0 > 0.5, uv.1 > 0.5),                         // uv1
+                0,                                                     // tex_id
+                user_data                                              // user_data
+            );
         }
 
         // 12  13  14  15
@@ -489,12 +495,12 @@ impl RenderScope {
     }
 
     /// Returns the user data.
-    pub fn user_data(&self) -> i32 {
+    pub fn user_data(&self) -> u16 {
         return self.user_data;
     }
 
     /// Sets user data.
-    pub fn set_user_data(&mut self, user_data: i32) {
+    pub fn set_user_data(&mut self, user_data: u16) {
         self.user_data = user_data;
     }
 

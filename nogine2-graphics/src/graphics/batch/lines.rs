@@ -44,7 +44,7 @@ impl LnsBatchRenderCall {
 
     pub fn push(&mut self, mut verts: [BatchVertex; 2]) {
         for v in &mut verts {
-            v.tex_id = 0;
+            v.set_tex_id(0);
             v.uv = vec2::ZERO;
         }
 

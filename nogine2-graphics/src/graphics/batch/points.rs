@@ -44,7 +44,7 @@ impl PtsBatchRenderCall {
 
     pub fn push(&mut self, verts: &mut [BatchVertex]) {
         for v in &mut *verts {
-            v.tex_id = 0;
+            v.set_tex_id(0);
         }
 
         self.buffers.push(verts);

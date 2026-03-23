@@ -1,7 +1,7 @@
 use std::{iter::Peekable, str::CharIndices, sync::Arc};
 
 use helpers::GraphicMetrics;
-use nogine2_core::{crash, log_warn, math::{mat3x3::mat3, rect::Rect, vector2::vec2, vector3::vec3}};
+use nogine2_core::{crash, log_warn, math::{mat3x3::mat3, rect::Rect, vector2::{bvec2, vec2}, vector3::vec3}};
 
 use crate::{colors::rgba::RGBA32, graphics::{batch::{BatchData, BatchPushCmd}, blending::BlendingMode, material::Material, texture::TextureHandle, vertex::BatchVertex}};
 
@@ -91,38 +91,38 @@ impl TextEngine {
             batch_data.push(
                 BatchPushCmd::Triangles {
                     verts: &[
-                        BatchVertex { // Left Down
-                            pos: (&transform * vec3::from_xy(b.offset + b.verts[0], 1.0)).xy(),
-                            tint: b.cols[0],
-                            uv: b.uvs.lu(),
-                            uv1: vec2(0.0, 1.0),
-                            tex_id: 0,
-                            user_data: 0,
-                        },
-                        BatchVertex { // Left Up
-                            pos: (&transform * vec3::from_xy(b.offset + b.verts[1], 1.0)).xy(),
-                            tint: b.cols[1],
-                            uv: b.uvs.ld(),
-                            uv1: vec2(0.0, 0.0),
-                            tex_id: 0,
-                            user_data: 0,
-                        },
-                        BatchVertex { // Right Up
-                            pos: (&transform * vec3::from_xy(b.offset + b.verts[2], 1.0)).xy(),
-                            tint: b.cols[2],
-                            uv: b.uvs.rd(),
-                            uv1: vec2(1.0, 0.0),
-                            tex_id: 0,
-                            user_data: 0,
-                        },
-                        BatchVertex {
-                            pos: (&transform * vec3::from_xy(b.offset + b.verts[3], 1.0)).xy(),
-                            tint: b.cols[3],
-                            uv: b.uvs.ru(),
-                            uv1: vec2(1.0, 1.0),
-                            tex_id: 0,
-                            user_data: 0,
-                        },
+                        BatchVertex::new( // Left Down
+                            (&transform * vec3::from_xy(b.offset + b.verts[0], 1.0)).xy(), // pos 
+                            b.cols[0], // tint 
+                            b.uvs.lu(), // uv 
+                            bvec2(false, true), // uv1 
+                            0, // tex_id 
+                            0, // user_data 
+                        ),
+                        BatchVertex::new( // Left Up
+                            (&transform * vec3::from_xy(b.offset + b.verts[1], 1.0)).xy(), // pos 
+                            b.cols[1], // tint 
+                            b.uvs.ld(), // uv 
+                            bvec2(false, false), // uv1 
+                            0, // tex_id 
+                            0, // user_data 
+                        ),
+                        BatchVertex::new( // Right Up
+                            (&transform * vec3::from_xy(b.offset + b.verts[2], 1.0)).xy(), // pos 
+                            b.cols[2], // tint 
+                            b.uvs.rd(), // uv 
+                            bvec2(true, false), // uv1 
+                            0, // tex_id 
+                            0, // user_data 
+                        ),
+                        BatchVertex::new(
+                            (&transform * vec3::from_xy(b.offset + b.verts[3], 1.0)).xy(), // pos 
+                            b.cols[3], // tint 
+                            b.uvs.ru(), // uv 
+                            bvec2(true, true), // uv1 
+                            0, // tex_id 
+                            0, // user_data 
+                        ),
                     ],
                     indices: &[0, 1, 2, 2, 3, 0],
                     texture: b.texture.clone(),
